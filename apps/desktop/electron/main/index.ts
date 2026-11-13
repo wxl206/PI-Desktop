@@ -951,7 +951,7 @@ function registerIpc() {
   const iterateService = new AccountService(iterateClient, iterateStore);
   iterateWindows = new AccountWindows(getMainWindow, () => ({
     login: "迭代账户", purchase: "充值迭代余额", paymentOrigin: "需要打开支付页面",
-    open: "打开", cancel: "取消",
+    open: "打开", cancel: "取消", connecting: "正在连接「迭代」…",
   }));
   const activeWindows = iterateWindows;
   return registerIpcHandlers({

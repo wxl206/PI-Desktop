@@ -4,6 +4,7 @@ import { AccountError, ITERATE_ORIGIN, ITERATE_SHOP } from "./contract";
 
 export type AccountWindowLabels = {
   login: string; purchase: string; paymentOrigin: string; open: string; cancel: string;
+  connecting: string;
 };
 
 /** These windows are never registered with BrowserHost, PluginViewHost or CDP tools. */
@@ -29,14 +30,29 @@ export class AccountWindows {
   }
   private readonly preventDownload = (event: Electron.Event) => event.preventDefault();
 
+  /** Paint feedback immediately so a slow remote load is never a white void. */
+  private async loadWithSplash(window: BrowserWindow, url: string) {
+    const label = this.labels().connecting.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] ?? c));
+    const splash = `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#101014;color:#ececef;font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-user-select:none}body{display:grid;place-items:center}</style><div>${label}</div>`;
+    try { await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(splash)}`); } catch { /* best effort */ }
+    if (this.disposed || window.isDestroyed()) return;
+    window.show();
+    await window.loadURL(url);
+  }
+
   private create(title: string, isolated: Session) {
     if (this.disposed) throw new AccountError("CANCELLED");
     // Chromium's global debugging endpoint can enumerate windows outside BrowserHost.
     if (app.commandLine.hasSwitch("remote-debugging-port") || app.commandLine.hasSwitch("remote-debugging-pipe")) throw new AccountError("DEBUG_ACTIVE");
     const window = new BrowserWindow({ parent: this.parent() ?? undefined, width: 1000, height: 800,
-      minWidth: 640, minHeight: 600, title, autoHideMenuBar: true,
+      minWidth: 640, minHeight: 600, title, autoHideMenuBar: true, show: false, backgroundColor: "#101014",
       webPreferences: { session: isolated, sandbox: true, contextIsolation: true, nodeIntegration: false,
         webSecurity: true, devTools: false, webviewTag: false, navigateOnDragDrop: false } });
+    window.webContents.on("did-fail-load", (_event, errorCode, _description, url, isMainFrame) => {
+      // ERR_ABORTED is the normal result of replacing the splash document.
+      if (!isMainFrame || errorCode === -3 || url.startsWith("data:") || this.disposed) return;
+      if (window === this.loginWindow) this.finish?.(new AccountError("NETWORK"));
+    });
     this.owned.add(window);
     window.webContents.on("will-attach-webview", (event) => event.preventDefault());
     window.on("closed", () => this.owned.delete(window));
@@ -77,7 +93,7 @@ export class AccountWindows {
       window.webContents.on("will-redirect", restrict);
       window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
       window.on("closed", () => { if (this.loginWindow === window) this.finish?.(new AccountError("CANCELLED")); });
-      void window.loadURL(`${ITERATE_ORIGIN}/console`).catch(() => this.finish?.(new AccountError("NETWORK")));
+      void this.loadWithSplash(window, `${ITERATE_ORIGIN}/console`).catch(() => this.finish?.(new AccountError("NETWORK")));
     }).finally(() => { this.pending = null; });
     return this.pending;
   }
@@ -87,7 +103,7 @@ export class AccountWindows {
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     const restrict = (event: Electron.Event, url: string) => { if (new URL(url).origin !== ITERATE_ORIGIN) event.preventDefault(); };
     window.webContents.on("will-navigate", restrict); window.webContents.on("will-redirect", restrict);
-    try { await window.loadURL(`${ITERATE_ORIGIN}/console`); }
+    try { await this.loadWithSplash(window, `${ITERATE_ORIGIN}/console`); }
     catch { window.destroy(); throw new AccountError("NETWORK"); }
     return { opened: true };
   }
@@ -113,7 +129,7 @@ export class AccountWindows {
     };
     window.webContents.on("will-navigate", restrict); window.webContents.on("will-redirect", restrict);
     window.webContents.setWindowOpenHandler(({ url: target }) => { void openApproved(target); return { action: "deny" }; });
-    try { await window.loadURL(url); }
+    try { await this.loadWithSplash(window, url); }
     catch { window.destroy(); throw new AccountError("NETWORK"); }
     return { opened: true };
   }

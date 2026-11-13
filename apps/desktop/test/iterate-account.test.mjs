@@ -30,6 +30,7 @@ const { AccountClient } = load("client");
 const { AccountKeys } = load("keys");
 const { discoverModels } = load("models");
 const { balanceFor, AccountService } = load("service");
+const { failureKey } = load("../../../../../apps/desktop/src/features/settings/iterate/failure");
 
 const ORIGIN = "https://api.wxl206.xyz";
 const SECRET = "sk-fixture-secret-value-123456";
@@ -153,4 +154,11 @@ test("an uncertain redemption is not resent and requires explicit acknowledgemen
   await assert.rejects(service.run(() => service.redeem("CODE-1")), (error) => error.code === "REDEMPTION_UNCERTAIN");
   assert.equal(posts, 1);
   assert.equal(store.journal.redemptionUser, 7);
+});
+
+test("renderer localizes the IPC error code instead of falling back to REJECTED", () => {
+  assert.equal(failureKey(Object.assign(new Error("x"), { code: "NETWORK" })), "NETWORK");
+  assert.equal(failureKey({ details: { errorCode: "LOGIN_REQUIRED" } }), "LOGIN_REQUIRED");
+  assert.equal(failureKey(Object.assign(new Error("x"), { code: "SOMETHING_ELSE" })), "REJECTED");
+  assert.equal(failureKey(undefined), "REJECTED");
 });

@@ -6,15 +6,7 @@ import { useAppStore } from "../../../stores/app-store";
 import { Badge, Button, Input } from "../../../components/ui";
 import { SettingsMenuSelect } from "../../../components/settings/SettingsMenuSelect";
 import { SettingsCard, SettingsRow } from "../primitives";
-
-const failureKeys = new Set(["BUSY", "LOGIN_REQUIRED", "CANCELLED", "NETWORK", "INVALID_RESPONSE",
-  "REJECTED", "STORAGE", "KEY_UNCERTAIN", "KEY_CHANGED", "GROUP_INVALID", "MODEL_INVALID",
-  "REDEMPTION_UNCERTAIN", "REDEMPTION_DISABLED", "DEBUG_ACTIVE", "PAYMENT_DOMAIN"]);
-
-function failureKey(error: unknown) {
-  const value = (error as { details?: { errorCode?: unknown } })?.details?.errorCode;
-  return typeof value === "string" && failureKeys.has(value) ? value : "REJECTED";
-}
+import { failureKey } from "./failure";
 
 export function IterateAccountPage() {
   const { t } = useTranslation();
