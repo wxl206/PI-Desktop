@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { IconCreditCard } from "../../../components/icons";
+import { Button, OverlayBackdrop } from "../../../components/ui";
 import { api } from "../../../lib/api";
 import { useBlockingOverlay } from "../../../lib/blocking-overlay";
 import { portalToBody } from "../../../lib/portal-visibility";
-import { Button, OverlayBackdrop } from "../../../components/ui";
-import { IconCreditCard } from "../../../components/icons";
 
 /**
  * Recharge is an explicit hand-off to a third-party shop: the app never
@@ -19,19 +19,28 @@ export function IteratePurchaseDialog({ onClose, onError }: {
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const alive = useRef(true);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
+    alive.current = true;
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    requestAnimationFrame(() => dialogRef.current?.focus());
+    const focusFrame = requestAnimationFrame(() => dialogRef.current?.focus());
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busyRef.current) { event.preventDefault(); onClose(); }
+      if (event.key === "Escape" && !busyRef.current) {
+        event.preventDefault();
+        onCloseRef.current();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
+      alive.current = false;
+      cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", onKeyDown);
       if (previouslyFocused?.isConnected) previouslyFocused.focus();
     };
-  }, [onClose]);
+  }, []);
 
   const confirm = async () => {
     if (busyRef.current) return;
@@ -39,13 +48,18 @@ export function IteratePurchaseDialog({ onClose, onError }: {
     setBusy(true);
     try {
       await api.iteratePurchase();
-      onClose();
     } catch (error) {
-      onError(error);
-    } finally {
       busyRef.current = false;
-      setBusy(false);
+      if (alive.current) {
+        onError(error);
+        setBusy(false);
+      }
+      return;
     }
+    busyRef.current = false;
+    if (!alive.current) return;
+    setBusy(false);
+    onClose();
   };
 
   const dialog = (

@@ -2017,3 +2017,30 @@ unit and byte counts. There is no cleanup phase. Background polls stay silent.
 只有 owner 验证成功后才会创建 `MessagePort`，之后由 preload 中继到 renderer 窗口。owner 在首个 `hello` 中回送每通电话独有的 nonce；Main 仅在 call ID 和 nonce 均匹配时接受该端口一次。二进制帧包含有界 PCM 音频、采集 epoch、释放确认、播放游标和协议就绪信号。它不是通用 IPC 隧道：不会传输 Provider 凭证、任意命令、工作区路径、Agent 消息或持久化字幕。通话结束或 owner 丢失时会关闭端口。
 
 停靠挂件窗口不是通话 owner，也不可能成为 owner：它在所有经过 owner 校验的通道上都会像任何其他 renderer 一样被以 `PERMISSION_DENIED` 拒绝。Main 只在该窗口作为发送方时响应它的两条通道；owner 自身的错误码经由主窗口传入，因为执行操作的是该 frame。挂件操作本身不会改变通话状态：它被转发给 owner frame，结果状态再通过 owner 收到的同一份权威视图回到挂件。
+
+## 17. 「迭代」账户 API
+
+第一方「迭代」分支向主窗口提供以下 Main IPC 通道。preload 白名单允许这些通道，Renderer 的远程 IPC 守卫将它们标为仅本地，Main 对当前主窗口以外的发送方统一返回 `PERMISSION_DENIED`。
+
+| IPC 通道 | 契约 |
+|---|---|
+| `pi-desktop/iterate/overview` | 返回脱敏账户、余额、分组、兑换状态，以及已经存在专用 Key 的分组 |
+| `pi-desktop/iterate/login` | 打开固定来源的隔离网站登录窗；账户与受管 Provider 状态提交后才完成 |
+| `pi-desktop/iterate/logout` | 有本地任务运行时拒绝执行；禁用受管 Provider、清除本地账户状态和隔离会话 |
+| `pi-desktop/iterate/discover` | 校验分组，查找/创建该分组专用 Key，再返回可见模型及已知 API 风格 |
+| `pi-desktop/iterate/connect` | 校验模型并创建或复用对应协议的受管 Provider |
+| `pi-desktop/iterate/rebuildKey` | 显式轮换：创建新名称的 Key，只重绑该账户记录中的受管 Provider |
+| `pi-desktop/iterate/copyKey` | Main 读取已存在的专用 Key 并直接写入系统剪贴板 |
+| `pi-desktop/iterate/purchase` | Renderer 明确确认后，在隔离的单例窗口中打开第三方充值商店 |
+| `pi-desktop/iterate/console` | 打开或复用隔离的「迭代」控制台窗口 |
+| `pi-desktop/iterate/redeem` | 提交用户输入的兑换码前先记录“结果不确定”保护状态 |
+| `pi-desktop/iterate/acknowledgeRedemption` | 用户确认后清除兑换结果不确定标记 |
+
+调用参数和返回值均不包含网站 access token、Cookie 或模型 API Key。`overview` 只通过 `dedicatedKeyGroups` 返回 Key 是否存在；模型 Key 通过 Provider RPC 进入 Host secret store。登录和购买窗口不获得 Renderer IPC、DevTools、插件或远程 Host 路由能力。
+
+本地任务运行时，模型接入、账户切换、退出和 Key 重建返回 `TASKS_RUNNING`。
+这些操作与 Prompt、手动压缩及已批准计划启动共享准入锁，避免在 Provider 解析与
+修改之间并发启动新一轮。Main 恢复账户会话后的 Provider 对账在任务运行期间保持
+现状，并在之后空闲概览时重试。稳定错误使用
+`packages/shared/src/iterate-account.ts` 中的 `IterateFailure`，原始远端响应体
+不会跨 IPC。参见 [ADR 0347](/adr/0347-main-owned-iterate-account-integration)。

@@ -41,7 +41,13 @@ export class AccountClient {
           chunks.push(value);
         }
       } finally { await reader.cancel().catch(() => {}); }
-      const result = object(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+      let decoded: unknown;
+      try {
+        decoded = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      } catch {
+        throw new AccountError("INVALID_RESPONSE");
+      }
+      const result = object(decoded);
       if (path === "/v1/models") return result;
       if (result.success !== true) throw new AccountError("REJECTED");
       return result.data;

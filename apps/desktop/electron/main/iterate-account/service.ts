@@ -1,8 +1,8 @@
-import type { IterateGroup, IterateOverview } from "@pi-desktop/shared";
+import type { IterateGroup, IterateOverview, ProviderPublic } from "@pi-desktop/shared";
 import { AccountClient } from "./client";
-import { AccountError, object, text } from "./contract";
+import { AccountError, ITERATE_ORIGIN, object, text } from "./contract";
 import { AccountKeys } from "./keys";
-import { connectModel, discoverModels } from "./models";
+import { connectModel, discoverModels, rebindKeyToProviders } from "./models";
 import type { AccountJournal, JournalStore } from "./journal";
 
 export function balanceFor(quota: number, status: Record<string, unknown>) {
@@ -19,7 +19,12 @@ export function balanceFor(quota: number, status: Record<string, unknown>) {
 export class AccountService {
   private busy = false;
   private readonly keys: AccountKeys;
-  constructor(readonly client: AccountClient, private readonly store: JournalStore) { this.keys = new AccountKeys(client, store); }
+  constructor(
+    readonly client: AccountClient,
+    private readonly store: JournalStore,
+    private readonly hasRunningTurns: () => boolean = () => false,
+    private readonly acquireAdmission: () => Promise<() => void> = async () => () => {},
+  ) { this.keys = new AccountKeys(client, store); }
 
   async run<T>(operation: () => Promise<T>): Promise<T> {
     if (this.busy) throw new AccountError("BUSY");
@@ -33,14 +38,39 @@ export class AccountService {
       try { await this.client.refresh(journal.activeUser); }
       catch (error) { if (!(error instanceof AccountError) || !["LOGIN_REQUIRED", "REJECTED"].includes(error.code)) throw error; }
     }
+    if (this.client.id && journal.activeUser === this.client.id) {
+      // Reconciliation mutates the same Provider rows as an account switch. Do
+      // not race a running turn, and re-read the journal after admission so a
+      // concurrent completed operation cannot be overwritten by this snapshot.
+      try {
+        await this.withAccountChange(async () => {
+          const latest = await this.store.read();
+          const user = this.client.id;
+          if (user && latest.activeUser === user) {
+            await this.syncManagedProviders(latest, user);
+          }
+        });
+      } catch (error) {
+        // Overview is read-only. A turn that starts while recovery waits for
+        // admission leaves provider reconciliation for the next idle overview.
+        if (!(error instanceof AccountError) || error.code !== "TASKS_RUNNING") throw error;
+      }
+    }
   }
 
   async signedIn(): Promise<void> {
-    const journal = await this.store.read();
-    if (journal.activeUser !== null && journal.activeUser !== this.client.id) throw new AccountError("LOGIN_REQUIRED");
-    journal.activeUser = this.client.id;
-    await this.restoreProviders(journal, true);
-    await this.store.save(journal);
+    await this.withAccountChange(async () => {
+      const journal = await this.store.read();
+      const nextUser = this.client.id;
+      if (!nextUser) throw new AccountError("LOGIN_REQUIRED");
+      if (journal.activeUser !== null && journal.activeUser !== nextUser) {
+        // Persist the safe intermediate state before exposing the new account.
+        await this.syncManagedProviders(journal, null);
+      }
+      journal.activeUser = nextUser;
+      await this.store.save(journal);
+      await this.syncManagedProviders(journal, nextUser);
+    });
   }
 
   private async groups(): Promise<IterateGroup[]> {
@@ -53,27 +83,34 @@ export class AccountService {
   }
 
   async overview(): Promise<IterateOverview> {
-    const journal = await this.store.read();
     const empty: IterateOverview = { user: null, groups: [], balance: null, redemptionEnabled: false,
-      redemptionUncertain: false, updatedAt: new Date().toISOString() };
+      redemptionUncertain: false, dedicatedKeyGroups: [], updatedAt: new Date().toISOString() };
     await this.recover();
     if (!this.client.id) return empty;
     try { await this.client.authenticated(); }
     catch (error) { if (error instanceof AccountError && ["LOGIN_REQUIRED", "REJECTED"].includes(error.code)) return empty; throw error; }
+    const journal = await this.store.read();
     const user = await this.client.identity();
     const groups = await this.groups();
     const status = object(await this.client.request("/api/status", undefined, { anonymous: true }));
     const info = object(await this.client.request("/api/user/topup/info"));
     return { ...empty, user, groups, balance: balanceFor(user.quota, status), redemptionEnabled: info.enable_redemption === true,
-      redemptionUncertain: journal.redemptionUser === user.id };
+      redemptionUncertain: journal.redemptionUsers.includes(user.id),
+      dedicatedKeyGroups: journal.records.filter((entry) => entry.user === user.id && entry.state === "created")
+        .map((entry) => entry.group) };
   }
 
-  private async keyFor(group: unknown) {
+  private async accountGroup(group: unknown) {
     const id = text(group);
     await this.client.authenticated();
     if (!(await this.groups()).some((entry) => entry.id === id)) throw new AccountError("GROUP_INVALID");
     const journal = await this.store.read();
     if (journal.activeUser !== this.client.id) throw new AccountError("LOGIN_REQUIRED");
+    return { id, journal };
+  }
+
+  private async keyFor(group: unknown) {
+    const { id, journal } = await this.accountGroup(group);
     return { journal, ...await this.keys.ensure(journal, id) };
   }
 
@@ -83,12 +120,27 @@ export class AccountService {
   }
 
   async connect(group: unknown, modelId: unknown) {
-    const id = text(modelId);
-    const { journal, record, key } = await this.keyFor(group);
-    const model = (await discoverModels(this.client, key)).find((entry) => entry.id === id);
-    if (!model) throw new AccountError("MODEL_INVALID");
-    const providerId = await connectModel(this.store, journal, record, key, model);
-    return { providerId, modelId: model.id };
+    return this.withAccountChange(async () => {
+      const id = text(modelId);
+      const { journal, record, key } = await this.keyFor(group);
+      const model = (await discoverModels(this.client, key)).find((entry) => entry.id === id);
+      if (!model) throw new AccountError("MODEL_INVALID");
+      const providerId = await connectModel(this.store, journal, record, key, model);
+      return { providerId, modelId: model.id };
+    });
+  }
+
+  async rebuildKey(group: unknown) {
+    return this.withAccountChange(async () => {
+      const { id, journal } = await this.accountGroup(group);
+      const { record, key } = await this.keys.rotate(journal, id);
+      // Verify the replacement key before changing any live provider. A failed
+      // discovery therefore leaves the durable rotation marker available for a
+      // safe retry with this same key.
+      const models = await discoverModels(this.client, key);
+      await rebindKeyToProviders(this.store, journal, record, key);
+      return { rebuilt: true as const, models };
+    });
   }
 
   async copyKey(group: unknown, write: (value: string) => void) {
@@ -102,46 +154,114 @@ export class AccountService {
   async redeem(code: unknown) {
     const key = text(code, 200).trim();
     await this.client.authenticated();
+    const user = this.client.id;
+    if (!user) throw new AccountError("LOGIN_REQUIRED");
+    const journal = await this.store.read();
+    if (journal.activeUser !== user) throw new AccountError("LOGIN_REQUIRED");
     const info = object(await this.client.request("/api/user/topup/info"));
     if (info.enable_redemption !== true) throw new AccountError("REDEMPTION_DISABLED");
-    const journal = await this.store.read();
-    if (journal.redemptionUser !== null) throw new AccountError("REDEMPTION_UNCERTAIN");
-    journal.redemptionUser = this.client.id;
+    if (journal.redemptionUsers.includes(user)) throw new AccountError("REDEMPTION_UNCERTAIN");
+    journal.redemptionUsers = [...journal.redemptionUsers, user].sort((a, b) => a - b);
     await this.store.save(journal);
     try { await this.client.request("/api/user/topup", { key }); }
     catch (error) {
       if (!(error instanceof AccountError) || error.code !== "REJECTED") throw new AccountError("REDEMPTION_UNCERTAIN");
-      journal.redemptionUser = null; await this.store.save(journal); throw error;
+      journal.redemptionUsers = journal.redemptionUsers.filter((entry) => entry !== user);
+      await this.store.save(journal); throw error;
     }
-    journal.redemptionUser = null; await this.store.save(journal);
+    journal.redemptionUsers = journal.redemptionUsers.filter((entry) => entry !== user);
+    await this.store.save(journal);
     // A failed follow-up balance query must not turn a confirmed redemption into failure.
     return { redeemed: true };
   }
 
   async acknowledgeRedemption() {
     await this.client.authenticated();
+    const user = this.client.id;
+    if (!user) throw new AccountError("LOGIN_REQUIRED");
     const journal = await this.store.read();
-    if (journal.redemptionUser !== this.client.id) throw new AccountError("REJECTED");
-    journal.redemptionUser = null; await this.store.save(journal);
+    if (!journal.redemptionUsers.includes(user)) throw new AccountError("REJECTED");
+    journal.redemptionUsers = journal.redemptionUsers.filter((entry) => entry !== user);
+    await this.store.save(journal);
     return { acknowledged: true };
   }
 
-  private async restoreProviders(journal: AccountJournal, enabled: boolean) {
-    const host = this.store.host();
-    for (const record of journal.records.filter((entry) => entry.user === journal.activeUser)) {
-      for (const entry of record.providers) await host.call("providers.update", { id: entry.id, enabled });
+  private assertIdle() {
+    if (this.hasRunningTurns()) throw new AccountError("TASKS_RUNNING");
+  }
+
+  private async withAccountChange<T>(operation: () => Promise<T>): Promise<T> {
+    this.assertIdle();
+    const release = await this.acquireAdmission();
+    try {
+      // A prompt may have been admitted while this operation waited for the
+      // gate. Recheck after acquiring so provider mutation never overlaps it.
+      this.assertIdle();
+      return await operation();
+    } finally {
+      release();
     }
   }
 
+  /**
+   * Enable exactly the managed provider rows owned by the selected account and
+   * disable every other journal-owned row. Provider identity is checked before
+   * any mutation so a damaged journal cannot disable an unrelated provider.
+   */
+  private async syncManagedProviders(journal: AccountJournal, activeUser: number | null) {
+    const host = this.store.host();
+    const { providers } = await host.call<{ providers: ProviderPublic[] }>("providers.list", { includeDisabled: true });
+    const byId = new Map(providers.map((provider) => [provider.id, provider]));
+    const desired = new Map<string, { enabled: boolean; style: string }>();
+    let changed = false;
+    for (const record of journal.records) {
+      const retained = record.providers.filter((binding) => {
+        const provider = byId.get(binding.id);
+        const managed = provider?.vendorKey === "iterate"
+          && provider.baseUrl === `${ITERATE_ORIGIN}/v1`
+          && provider.apiStyle === binding.style
+          && !provider.ownerPluginId;
+        if (!managed) { changed = true; return false; }
+        desired.set(provider.id, { enabled: record.user === activeUser, style: binding.style });
+        return true;
+      });
+      if (retained.length !== record.providers.length) record.providers = retained;
+    }
+    for (const [id, binding] of desired) {
+      const provider = byId.get(id)!;
+      const needsUpdate = provider.enabled !== binding.enabled
+        || (binding.enabled && (provider.protocol !== "openai_compatible"
+          || provider.vendorKey !== "iterate" || provider.type !== "openai_compatible"
+          || provider.authKind !== "api_key" || provider.baseUrl !== `${ITERATE_ORIGIN}/v1`));
+      if (!needsUpdate) continue;
+      await host.call("providers.update", {
+        id,
+        enabled: binding.enabled,
+        ...(binding.enabled ? {
+          vendorKey: "iterate",
+          type: "openai_compatible",
+          protocol: "openai_compatible",
+          authKind: "api_key",
+          baseUrl: `${ITERATE_ORIGIN}/v1`,
+          apiStyle: binding.style,
+        } : {}),
+      });
+    }
+    if (changed) await this.store.save(journal);
+  }
+
   async logout(clearSession: () => Promise<void>) {
-    const journal = await this.store.read();
-    // Durable logout intent before disabling connections; restart cannot restore cookies.
-    const user = journal.activeUser; journal.activeUser = null;
-    await this.store.save(journal);
-    try {
-      await this.restoreProviders({ ...journal, activeUser: user }, false);
-      if (this.client.id) await this.client.request("/api/user/auth/logout", {});
-    } finally { this.client.clear(); await clearSession(); }
-    return { loggedOut: true };
+    return this.withAccountChange(async () => {
+      const journal = await this.store.read();
+      // Disable every local connection first. A crash before the journal write
+      // restores the old signed-in state and re-enables its providers on recovery.
+      await this.syncManagedProviders(journal, null);
+      journal.activeUser = null;
+      await this.store.save(journal);
+      try {
+        if (this.client.id) await this.client.request("/api/user/auth/logout", {}).catch(() => undefined);
+      } finally { this.client.clear(); await clearSession(); }
+      return { loggedOut: true };
+    });
   }
 }

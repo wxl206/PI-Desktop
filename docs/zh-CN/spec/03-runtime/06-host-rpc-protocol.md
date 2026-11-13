@@ -251,6 +251,47 @@ type ToolBudgetHealth = {
 - `settings.get`
 - `settings.set`
 
+### 「迭代」账户日志
+
+- `iterateAccount.get({})` — 返回经过校验的本地日志，不存在时返回 `null`。
+- `iterateAccount.set(journal)` — 校验完整日志，要求传入的 `revision` 等于
+  已存版本，递增后返回保存值。尚无日志时从 revision 0 开始。过期 revision、
+  重复的账户/分组、Key 名称、Token、Provider 或 API 风格身份，以及不可能的
+  state/token 组合都返回 `INVALID_PARAMS`，且不写入。
+
+当前 version 2 的结构为：
+
+```ts
+type IterateAccountJournal = {
+  version: 2
+  revision: number
+  installation: string
+  activeUser: number | null
+  redemptionUsers: number[]
+  records: Array<{
+    user: number
+    group: string
+    name: string
+    state: "prepared" | "pending" | "created"
+    tokenId: number | null
+    rotationPending: boolean
+    providers: Array<{
+      id: string
+      style: "chat_completions" | "responses" | "anthropic_messages"
+    }>
+  }>
+}
+```
+
+为兼容旧数据，稳定存储键仍为 `iterate-account-v1`，版本号位于值内部。
+version 1 的单值 `redemptionUser` 会迁移为只含一个元素的
+`redemptionUsers`，并补上 `rotationPending: false`；Host 在下一次 CAS
+更新时写入迁移后的结构。`redemptionUsers` 让兑换结果不确定状态按账户隔离。
+
+该域只由 Electron Main 在本机「迭代」账户集成中调用，不是 Renderer 或
+远程 Host API，且不包含网站 access token、Cookie 或模型 API Key。Provider
+密钥仍通过既有的 Provider secret 路径进入 Host，不写入本日志。
+
 ### 会议
 - `session.list`
 - `session.create` — 接受可选的 `thinkingLevel`； missing/null 默认值

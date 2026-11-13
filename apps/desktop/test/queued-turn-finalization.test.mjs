@@ -127,6 +127,7 @@ function fixture() {
     announceTurnEnded: (payload) => announcements.push(payload),
     emitAgentEvent() {},
     acquireSessionOperation: coordination.acquireSessionOperation,
+    acquireAccountAdmission: async () => () => {},
     resolveAgentRuntimeLaunch: async () => {
       throw new Error("not used by this fixture");
     },

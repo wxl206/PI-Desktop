@@ -2739,3 +2739,40 @@ window, and the owner's own failure code arrives through the main window, which
 is the frame that ran the action. A widget action never changes call state by
 itself: it is forwarded to the owner frame, and the resulting state reaches the
 widget through the same authoritative view the owner receives.
+
+## 17. Iterate account API
+
+The first-party Iterate fork exposes the following Main-owned,
+main-window-only channels. The preload allowlist accepts them, the renderer
+remote-IPC guard marks them local-only, and Main rejects every sender other
+than the current main window with `PERMISSION_DENIED`.
+
+| IPC channel | Contract |
+|---|---|
+| `pi-desktop/iterate/overview` | redacted user, balance, groups, redemption state, and groups whose dedicated key already exists |
+| `pi-desktop/iterate/login` | opens the isolated fixed-origin website login; resolves after the accepted account and managed Provider state are committed |
+| `pi-desktop/iterate/logout` | refuses while a local turn runs; disables managed Providers, clears local account state, and clears isolated website/purchase storage |
+| `pi-desktop/iterate/discover` | validates the selected group and reconciles or creates its dedicated key, then returns visible models and known API styles |
+| `pi-desktop/iterate/connect` | validates one discoverable model and creates/reuses the protocol-specific managed Provider |
+| `pi-desktop/iterate/rebuildKey` | explicit rotation: creates a uniquely named replacement key and rebinds only that account record's managed Providers |
+| `pi-desktop/iterate/copyKey` | reveals the already-created dedicated key in Main and writes it directly to the system clipboard |
+| `pi-desktop/iterate/purchase` | opens the third-party recharge shop in its isolated singleton window after renderer confirmation |
+| `pi-desktop/iterate/console` | opens/reuses the isolated Iterate console window |
+| `pi-desktop/iterate/redeem` | records uncertainty before submitting a user-supplied redemption code |
+| `pi-desktop/iterate/acknowledgeRedemption` | manually clears the user's recorded redemption-uncertainty marker |
+
+No invoke accepts or returns a website access token, cookie, or model API key.
+`overview` returns only `dedicatedKeyGroups` as key-presence metadata. Account
+Provider secrets enter the existing Host secret store through provider RPC.
+Login/purchase windows do not receive renderer IPC, DevTools, plugins, or
+remote-host routing.
+
+Model connection, account switching, sign-out, and key rotation return
+`TASKS_RUNNING` while a local turn is active. They share an admission gate with
+prompt, manual compaction, and approved-plan startup, closing the read-then-act
+window between Provider resolution and mutation. Provider reconciliation after
+Main restores an account session leaves the rows unchanged while a turn is
+running and retries on a later idle overview. Stable account failures use the
+`IterateFailure` codes in `packages/shared/src/iterate-account.ts`; raw remote
+response bodies never cross IPC. See
+[ADR 0347](../../adr/0347-main-owned-iterate-account-integration.md).

@@ -80,6 +80,7 @@ export type RegisterIpcDependencies = {
   disabledBuiltinSkills: () => Promise<string[]>;
   /** Host activation plus the inline-visualization switch, for runtime consumers. */
   runtimeDisabledBuiltinSkills: () => Promise<string[]>;
+  acquireAccountAdmission: () => Promise<() => void>;
   completionNoticeTurns: Set<string>;
   /** Mode definition catalog and staged run coordination (ADR mode-definitions). */
   modeServices: ModeServices;
@@ -124,6 +125,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     updater,
     dataDir,
     activeTurns,
+    acquireAccountAdmission,
     completionNoticeTurns,
     isTurnDispatchable,
     sessionProjects,
@@ -349,7 +351,6 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     registerIterateIpc({
       ...dependencies.iterateAccount,
       registrar,
-      getMainWindow,
     });
   }
   registerJevIpc({ registrar, logger });
@@ -457,6 +458,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     persistenceOutbox,
     dataDir,
     activeTurns,
+    acquireAccountAdmission,
     completionNoticeTurns,
     recordTurnStart,
     isTurnDispatchable,

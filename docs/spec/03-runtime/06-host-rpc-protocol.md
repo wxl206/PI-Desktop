@@ -323,6 +323,50 @@ to later refresh and inference; the vendor picker does not collect them.
   Custom requires an `http`/`https`/`socks5` URL. host-core uses the stored
   value for marketplace `curl --proxy` and does not put it on process env.
 
+### Iterate account journal
+
+- `iterateAccount.get({})` — returns the validated local journal or `null`.
+- `iterateAccount.set(journal)` — validates the complete journal, requires its
+  `revision` to equal the stored revision, increments that revision, and returns
+  the saved value. A missing journal starts at revision 0. A stale revision,
+  duplicate account/group, key/name, token, Provider, or API-style identity, or
+  an impossible state/token pair returns `INVALID_PARAMS` without writing.
+
+Current version 2 has this shape:
+
+```ts
+type IterateAccountJournal = {
+  version: 2
+  revision: number
+  installation: string
+  activeUser: number | null
+  redemptionUsers: number[]
+  records: Array<{
+    user: number
+    group: string
+    name: string
+    state: "prepared" | "pending" | "created"
+    tokenId: number | null
+    rotationPending: boolean
+    providers: Array<{
+      id: string
+      style: "chat_completions" | "responses" | "anthropic_messages"
+    }>
+  }>
+}
+```
+
+The stable storage key remains `iterate-account-v1` for compatibility, while
+the value carries its own schema version. A version 1 journal's singleton
+`redemptionUser` becomes a one-item `redemptionUsers` array and gains
+`rotationPending: false`; the Host writes the migrated form on the next CAS
+update. `redemptionUsers` keeps uncertainty scoped per account.
+
+This domain is called only by Electron Main for the local iterated account
+integration. It is not a renderer or remote-host API and contains no website
+access token, cookie, or model API key. Provider key material enters the Host
+through the existing Provider secret path, not this journal.
+
 ### Sessions
 - `session.list` — returns summaries with host-authoritative `messageCount`
   alongside the existing session metadata

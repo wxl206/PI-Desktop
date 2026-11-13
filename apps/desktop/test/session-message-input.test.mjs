@@ -96,6 +96,7 @@ test("prompt IPC persists original session text, skips slash expansion and binds
       sidecarParams: { sessionId: "target", provider: { modelConfig: { input: ["text"] } } },
     }),
     acquireSessionOperation: async () => () => { released = true; },
+    acquireAccountAdmission: async () => () => {},
     finishTurn: async () => { assert.fail("the prompt should succeed"); },
     emitAgentEvent: (event) => events.push(event), setNotificationViewingSessionId() {},
     optionalWorkspaceRoot: async () => { assert.fail("session text must not expand slash commands"); },
@@ -124,6 +125,7 @@ test("abort waits for prompt admission before dispatching to the sidecar", async
   let firstSessionOperation = true;
   const promptGate = new Promise((resolve) => { releasePrompt = resolve; });
   const sessionGate = new Promise((resolve) => { releaseSessionOperation = resolve; });
+  let releasedAccount = false;
   const host = {
     async call(method) {
       calls.push(method);
@@ -170,6 +172,7 @@ test("abort waits for prompt admission before dispatching to the sidecar", async
       await sessionGate;
       return () => {};
     },
+    acquireAccountAdmission: async () => () => { releasedAccount = true; },
     finishTurn: async (...args) => { finishedTurns.push(args); },
     lockAbortReason() {}, async finishApprovedExecution() {}, async dispatchApprovedPlan() {},
     async dispatchExecutionForProposal() {}, emitAgentEvent() {}, setNotificationViewingSessionId() {},
@@ -195,4 +198,5 @@ test("abort waits for prompt admission before dispatching to the sidecar", async
   assert.equal(activeTurns.get("target"), "turn-1");
   assert.deepEqual(finishedTurns, [["target", "aborted", "TURN_ABORTED", { turnId: "turn-1" }]]);
   assert.deepEqual(calls.slice(0, 2), ["settings.get", "session.get"]);
+  assert.equal(releasedAccount, true);
 });

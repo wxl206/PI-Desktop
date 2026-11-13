@@ -99,6 +99,23 @@ storage, Target and network-interception methods remain denied.
   `sk-`-style token pattern) in Electron main, `redact_value` in host-core
   audit writes; verified by the no-secret-leak smoke check
 - Error messages must not echo full keys
+- The Iterate website access token stays in Electron Main memory and is sent
+  only to the fixed `https://api.wxl206.xyz` origin. It is never persisted in
+  the account journal, returned through IPC, or passed to the renderer,
+  provider rows, plugins, or a paired remote Host. Logout clears the isolated
+  website and purchase partitions.
+- A dedicated Iterate model key is read in Main only long enough to send it to
+  the existing Host Provider secret store. Account IPC exposes key-presence
+  metadata only; copying a key writes directly from Main to the clipboard.
+- Login and console pages share a persistent isolated website partition. The
+  third-party recharge page uses a separate non-persistent partition and opens
+  only after explicit confirmation. These windows deny permissions, downloads,
+  popups, webviews, DevTools, remote-host routing, and top-level navigation
+  outside their approved HTTPS origins; a new payment origin requires its own
+  visible confirmation.
+- Account HTTP requests use a fixed origin, disable redirects, time out after
+  30 seconds, and cap JSON bodies at 4 MiB. Remote response bodies and account
+  credentials never cross IPC.
 
 ## 4. Workspace sandbox
 

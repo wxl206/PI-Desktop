@@ -757,6 +757,7 @@ export const api = {
   iterateLogout: () => invoke<{ loggedOut: true }>(IPC.invoke.iterateLogout),
   iterateDiscover: (group: string) => invoke<{ models: IterateModel[] }>(IPC.invoke.iterateDiscover, group),
   iterateConnect: (group: string, modelId: string) => invoke<{ providerId: string; modelId: string }>(IPC.invoke.iterateConnect, group, modelId),
+  iterateRebuildKey: (group: string) => invoke<{ rebuilt: true; models: IterateModel[] }>(IPC.invoke.iterateRebuildKey, group),
   iterateCopyKey: (group: string) => invoke<{ copied: true }>(IPC.invoke.iterateCopyKey, group),
   iteratePurchase: () => invoke<{ opened: true }>(IPC.invoke.iteratePurchase),
   iterateConsole: () => invoke<{ opened: true }>(IPC.invoke.iterateConsole),

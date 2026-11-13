@@ -62,6 +62,8 @@ import { AccountClient } from "./iterate-account/client";
 import { JournalStore } from "./iterate-account/journal";
 import { AccountService } from "./iterate-account/service";
 import { AccountWindows } from "./iterate-account/windows";
+import { AccountAdmission } from "./iterate-account/admission";
+import { accountWindowLabels } from "./iterate-account/labels";
 import { createVoiceService } from "./voice-service";
 import { MicrophoneLeaseRegistry } from "./live-voice/microphone-lease";
 import { createLiveCallService } from "./live-voice/runtime";
@@ -124,6 +126,7 @@ const getSidecar = () => mainState.sidecar;
 
 let applicationLifecycle: ReturnType<typeof createApplicationLifecycle> | null = null;
 let iterateWindows: AccountWindows | null = null;
+const iterateAccountAdmission = new AccountAdmission();
 let launcherRuntime: ReturnType<typeof createLauncher> | null = null;
 let closeBehaviorRuntime: ReturnType<typeof createCloseBehaviorRuntime> | null = null;
 const showPluginLauncherForLifecycle = (): Promise<void> => {
@@ -742,6 +745,7 @@ const planRuntime = createPlanRuntime({
   announceTurnEnded,
   emitAgentEvent: (envelope) => emitAgentEvent(envelope),
   acquireSessionOperation,
+  acquireAccountAdmission: () => iterateAccountAdmission.acquire(),
   resolveAgentRuntimeLaunch,
   isQuitting: () => mainState.quitting,
   onTurnSettled: sessionCollaboration.settle,
@@ -942,17 +946,23 @@ const localApps: LocalAppCatalog = {
 };
 
 function registerIpc() {
+  if (iterateWindows) {
+    iterateWindows.dispose();
+    iterateWindows = null;
+  }
   const iterateClient = new AccountClient((url, init) => {
     const isolated = iterateWindows?.website;
     if (!isolated) throw new Error("iterate session unavailable");
     return isolated.fetch(url, init);
   });
   const iterateStore = new JournalStore(getHost);
-  const iterateService = new AccountService(iterateClient, iterateStore);
-  iterateWindows = new AccountWindows(getMainWindow, () => ({
-    login: "迭代账户", purchase: "充值迭代余额", paymentOrigin: "需要打开支付页面",
-    open: "打开", cancel: "取消", connecting: "正在连接「迭代」…",
-  }));
+  const iterateService = new AccountService(
+    iterateClient,
+    iterateStore,
+    () => activeTurns.size > 0,
+    () => iterateAccountAdmission.acquire(),
+  );
+  iterateWindows = new AccountWindows(getMainWindow, () => accountWindowLabels(mainState.updaterLocale));
   const activeWindows = iterateWindows;
   return registerIpcHandlers({
     modeServices,
@@ -988,6 +998,7 @@ function registerIpc() {
     updater,
     dataDir,
     activeTurns,
+    acquireAccountAdmission: () => iterateAccountAdmission.acquire(),
     completionNoticeTurns,
     isTurnDispatchable,
     sessionProjects,

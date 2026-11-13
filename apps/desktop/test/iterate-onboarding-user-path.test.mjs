@@ -45,10 +45,17 @@ let overviewUser = null;
 let loginCalls = 0;
 let discoverCalls = 0;
 let connectCalls = 0;
+let rebuildCalls = 0;
 let refreshCalls = 0;
 let connectionArgs = null;
 let purchaseCalls = 0;
+let logoutCalls = 0;
 let overviewCalls = 0;
+let overviewMode = "success";
+let overviewDelayMs = 0;
+let discoverMode = "success";
+let settingsMode = "success";
+let dedicatedKeyGroups = [];
 let saved = [];
 const toasts = [];
 const groups = [{ id: "default", description: "Default group", ratio: 1.5 }];
@@ -77,12 +84,20 @@ window.piDesktop = {
   async invoke(channel, ...args) {
     if (channel === IPC.invoke.iterateOverview) {
       overviewCalls += 1;
+      if (overviewMode === "error") {
+        return { ok: false, error: { code: "NETWORK", message: "fixture offline" } };
+      }
+      const user = overviewUser;
+      if (overviewDelayMs) {
+        await new Promise((resolve) => setTimeout(resolve, overviewDelayMs));
+      }
       return { ok: true, data: {
-        user: overviewUser,
+        user,
         groups,
         balance: null,
         redemptionEnabled: false,
         redemptionUncertain: false,
+        dedicatedKeyGroups: [...dedicatedKeyGroups],
         updatedAt: "2026-11-13T00:00:00.000Z",
       } };
     }
@@ -91,7 +106,16 @@ window.piDesktop = {
       overviewUser = { id: 7, name: "Iterate user", quota: 500000 };
       return { ok: true, data: null };
     }
+    if (channel === IPC.invoke.iterateLogout) {
+      logoutCalls += 1;
+      overviewUser = null;
+      dedicatedKeyGroups = [];
+      return { ok: true, data: { loggedOut: true } };
+    }
     if (channel === IPC.invoke.iterateDiscover) {
+      if (discoverMode === "error") {
+        return { ok: false, error: { code: "NETWORK", message: "fixture discover offline" } };
+      }
       discoverCalls += 1;
       return { ok: true, data: { models: [
         { id: "unsupported-model", styles: [] },
@@ -103,11 +127,25 @@ window.piDesktop = {
       connectionArgs = [...args];
       return { ok: true, data: { providerId: "iterate-provider", modelId: "chat-a" } };
     }
+    if (channel === IPC.invoke.iterateRebuildKey) {
+      rebuildCalls += 1;
+      dedicatedKeyGroups = [...new Set([...dedicatedKeyGroups, String(args[0])])];
+      return { ok: true, data: {
+        rebuilt: true,
+        models: [
+          { id: "chat-a", styles: ["chat_completions"] },
+          { id: "chat-b", styles: ["chat_completions"] },
+        ],
+      } };
+    }
     if (channel === IPC.invoke.iteratePurchase) {
       purchaseCalls += 1;
       return { ok: true, data: { opened: true } };
     }
     if (channel === IPC.invoke.settingsSet) {
+      if (settingsMode === "error") {
+        return { ok: false, error: { code: "STORAGE", message: "fixture settings store offline" } };
+      }
       saved.push(structuredClone(args[0]));
       return { ok: true, data: args[0] };
     }
@@ -121,7 +159,7 @@ const baseSettings = {
   language: "en",
 };
 useAppStore.setState({
-  settings: { ...baseSettings },
+  settings: null,
   showToast(message, options) { toasts.push({ message, variant: options?.variant }); },
   setPage(page) { useAppStore.setState({ page }); },
   setSettingsTab(tab) { useAppStore.setState({ settingsTab: tab }); },
@@ -132,7 +170,9 @@ useAppStore.setState({
 });
 
 const rootNode = createRoot(document.getElementById("root"));
-const frame = () => new Promise(requestAnimationFrame);
+// Hidden Electron windows stop producing animation frames, so turn the event
+// loop once instead of using rAF as an unrelated liveness dependency.
+const frame = () => new Promise((resolve) => setTimeout(resolve, 0));
 async function settle() { await frame(); await frame(); }
 function mount(element) { flushSync(() => rootNode.render(element)); }
 async function waitFor(predicate, message) {
@@ -152,9 +192,17 @@ function button(label) {
 }
 
 window.iterateOnboardingProbe = async () => {
+  console.log("ITERATE_PROBE_STAGE welcome");
+  const overviewCallsBeforeSettingsLoad = overviewCalls;
   mount(React.createElement(IterateWelcome));
+  await settle();
+  check(!document.querySelector('[data-testid="iterate-welcome"]'),
+    "the guide rendered before persisted settings were available");
+  check(overviewCalls === overviewCallsBeforeSettingsLoad,
+    "the guide queried the account before persisted settings were available");
+  useAppStore.setState({ settings: { ...baseSettings, iterateWelcomeDismissed: false } });
   await waitFor(() => document.querySelector('[data-testid="iterate-welcome"]'),
-    "the first-run account guide did not appear");
+    "the first-run account guide did not appear after settings loaded");
   check(document.body.textContent.includes("Connect and create API key"),
     "the guide does not lead with account connection");
 
@@ -175,9 +223,31 @@ window.iterateOnboardingProbe = async () => {
   await waitFor(() => !document.querySelector('[role="dialog"]'),
     "confirmed recharge left the confirmation open");
 
+  const storageToastsBeforeMissingSettings = toasts.filter((toast) =>
+    toast.message === "Account records could not be saved or read.").length;
+  useAppStore.setState({ settings: null });
+  flushSync(() => button("Later").click());
+  await waitFor(() => toasts.filter((toast) =>
+    toast.message === "Account records could not be saved or read.").length
+      === storageToastsBeforeMissingSettings + 1,
+  "a missing settings value did not report a storage failure");
+  check(document.querySelector('[data-testid="iterate-welcome"]'),
+    "the guide disappeared even though missing settings could not be persisted");
+  check(saved.length === 0,
+    "a missing settings value was reported as successfully saved");
+  useAppStore.setState({ settings: { ...baseSettings } });
+
+  settingsMode = "error";
+  flushSync(() => button("Later").click());
+  await waitFor(() => toasts.some((toast) =>
+    toast.message === "Account records could not be saved or read."),
+  "a failed dismissal did not report the storage error");
+  check(document.querySelector('[data-testid="iterate-welcome"]'),
+    "the guide disappeared even though dismissal was not persisted");
+  settingsMode = "success";
   flushSync(() => button("Later").click());
   await waitFor(() => !document.querySelector('[data-testid="iterate-welcome"]'),
-    "Later did not hide the guide");
+    "Later did not hide the guide after the settings store recovered");
   await waitFor(() => saved.some((settings) => settings.iterateWelcomeDismissed === true),
     "Later did not persist the guide dismissal");
 
@@ -216,6 +286,7 @@ window.iterateOnboardingProbe = async () => {
   await waitFor(() => saved.some((settings) => settings.iterateWelcomeDismissed === true),
     "completed setup did not persist the guide dismissal");
 
+  console.log("ITERATE_PROBE_STAGE restored-account");
   mount(null);
   overviewUser = { id: 7, name: "Iterate user", quota: 500000 };
   saved = [];
@@ -228,14 +299,76 @@ window.iterateOnboardingProbe = async () => {
   check(saved.length === 0,
     "restoring an account silently completed or dismissed model setup");
 
+  console.log("ITERATE_PROBE_STAGE connection-error");
+  discoverMode = "error";
+  const networkToastsBefore = toasts.filter((toast) =>
+    toast.message === "The gateway could not be reached.").length;
+  flushSync(() => button("Finish API key and model setup").click());
+  await waitFor(() => toasts.filter((toast) =>
+    toast.message === "The gateway could not be reached.").length === networkToastsBefore + 1,
+  "a normal model-discovery failure was not reported as a recoverable action error");
+  check(document.querySelector('[data-testid="iterate-welcome"]'),
+    "a normal model-discovery failure replaced the onboarding guide");
+  check(!document.querySelector('[data-testid="iterate-welcome-error"]'),
+    "a normal model-discovery failure was rendered as an initialization failure");
+  discoverMode = "success";
+
+  console.log("ITERATE_PROBE_STAGE error-dismissal");
+  mount(null);
+  overviewMode = "error";
+  useAppStore.setState({ settings: { ...baseSettings, iterateWelcomeDismissed: false } });
+  mount(React.createElement(IterateWelcome));
+  await waitFor(() => document.querySelector('[data-testid="iterate-welcome-error"]'),
+    "an account initialization error did not render the recoverable guide");
+  flushSync(() => button("Later").click());
+  await waitFor(() => !document.querySelector('[data-testid="iterate-welcome-error"]'),
+    "Later did not dismiss the recoverable guide");
+  overviewMode = "success";
+
+  console.log("ITERATE_PROBE_STAGE account-retry");
+  overviewMode = "error";
   mount(React.createElement(IterateAccountPage));
+  console.log("ITERATE_PROBE_STAGE account-retry-mounted");
+  await waitFor(() => document.body.textContent.includes("Could not load the Iterate account"),
+    "a transient account error was shown as a signed-out account");
+  console.log("ITERATE_PROBE_STAGE account-retry-error");
+  check(!button("Connect Iterate"),
+    "a transient account error exposed the sign-in action");
+  overviewMode = "success";
+  flushSync(() => button("Refresh").click());
+  console.log("ITERATE_PROBE_STAGE account-retry-clicked");
   await waitFor(() => document.body.textContent.includes("Default group"),
-    "the account page did not render the available group");
+    "retrying the account load did not render the available group");
+  console.log("ITERATE_PROBE_STAGE account-retry-loaded");
   check(document.body.textContent.includes("Default group · Rate ×1.5"),
     "the account page did not show the server-provided group ratio");
+  check(button("Copy dedicated key").disabled,
+    "copy was enabled before the dedicated key existed");
+  flushSync(() => button("Discover models").click());
+  await waitFor(() => rebuildCalls === 0 && !button("Copy dedicated key").disabled,
+    "discovering the dedicated key did not enable copy");
+  flushSync(() => button("Recreate dedicated key").click());
+  await waitFor(() => document.querySelector('[role="dialog"]'),
+    "key recreation did not ask for confirmation");
+  check(rebuildCalls === 0, "opening key recreation already created a key");
+  flushSync(() => button("Cancel").click());
+  await waitFor(() => !document.querySelector('[role="dialog"]'),
+    "cancelling key recreation left the confirmation open");
+  flushSync(() => button("Recreate dedicated key").click());
+  await waitFor(() => button("Create new key"),
+    "the key recreation confirmation did not reopen");
+  flushSync(() => button("Create new key").click());
+  await waitFor(() => rebuildCalls === 1,
+    "confirming key recreation did not run the rebuild");
+  await waitFor(() => !document.querySelector('[role="dialog"]'),
+    "key recreation left the confirmation open");
+  await waitFor(() => toasts.some((toast) => toast.message.includes("Dedicated key recreated")),
+    "key recreation did not report success");
+  console.log("ITERATE_PROBE_STAGE account-success");
   mount(null);
 
   providerRows = [existingProvider, connectedProvider];
+  console.log("ITERATE_PROBE_STAGE existing-default");
   saved = [];
   useAppStore.setState({
     providers: providerRows,
@@ -247,15 +380,46 @@ window.iterateOnboardingProbe = async () => {
     },
   });
   mount(React.createElement(IterateAccountPage));
+  console.log("ITERATE_PROBE_STAGE existing-default-mounted");
   await waitFor(() => document.body.textContent.includes("Default group"),
     "the account page did not render before changing an Iterate model");
+  console.log("ITERATE_PROBE_STAGE existing-default-loaded");
   flushSync(() => button("Discover models").click());
   await waitFor(() => button("Connect"), "model discovery did not expose Connect");
+  console.log("ITERATE_PROBE_STAGE existing-default-discovered");
   flushSync(() => button("Connect").click());
   await waitFor(() => connectCalls === 2, "the second model connection did not finish");
   await settle();
+  console.log("ITERATE_PROBE_STAGE existing-default-connected");
   check(saved.length === 0,
     "connecting another Iterate model replaced an existing runnable app default");
+
+  console.log("ITERATE_PROBE_STAGE account-login-refresh");
+  mount(null);
+  overviewUser = null;
+  const refreshCallsBeforeLogin = refreshCalls;
+  mount(React.createElement(IterateAccountPage));
+  await waitFor(() => button("Connect Iterate"),
+    "the signed-out account page did not expose login");
+  flushSync(() => button("Connect Iterate").click());
+  await waitFor(() => document.body.textContent.includes("Iterate user"),
+    "account login did not reload the signed-in page");
+  await waitFor(() => refreshCalls === refreshCallsBeforeLogin + 1,
+    "account login did not refresh the provider rows");
+
+  console.log("ITERATE_PROBE_STAGE stale-overview");
+  overviewDelayMs = 250;
+  flushSync(() => button("Refresh").click());
+  flushSync(() => button("Sign out").click());
+  await waitFor(() => button("Connect Iterate"),
+    "logout did not return to the signed-out account page");
+  await waitFor(() => logoutCalls === 1,
+    "logout did not complete through the account IPC");
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  await settle();
+  check(button("Connect Iterate") && !document.body.textContent.includes("Iterate user"),
+    "an overview response started before logout restored the signed-in account");
+  overviewDelayMs = 0;
 
   flushSync(() => rootNode.unmount());
   return {
@@ -271,6 +435,10 @@ window.iterateOnboardingProbe = async () => {
     restoredAccountWaitsForSetup: true,
     groupRatioVisible: true,
     existingDefaultPreserved: true,
+    connectionErrorStayedInline: true,
+    loginRefreshedProviders: true,
+    onboardingErrorDismissed: true,
+    staleOverviewIgnored: true,
     toasts,
   };
 };
@@ -315,6 +483,12 @@ app.setPath("userData", path.join(__dirname, "profile"));
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ show: false, width: 900, height: 760,
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } });
+  win.webContents.on("console-message", (_event, ...details) => {
+    console.log("RENDERER_CONSOLE " + JSON.stringify(details));
+  });
+  win.webContents.on("render-process-gone", (_event, detail) => {
+    console.error("RENDERER_GONE " + JSON.stringify(detail));
+  });
   try {
     await win.loadFile(path.join(__dirname, "index.html"));
     const result = await win.webContents.executeJavaScript("window.iterateOnboardingProbe()");
@@ -372,7 +546,20 @@ app.whenReady().then(async () => {
         restoredAccountWaitsForSetup: true,
         groupRatioVisible: true,
         existingDefaultPreserved: true,
-        toasts: ["Model connected.", "Model connected."],
+        connectionErrorStayedInline: true,
+        loginRefreshedProviders: true,
+        onboardingErrorDismissed: true,
+        staleOverviewIgnored: true,
+        toasts: [
+          "Account records could not be saved or read.",
+          "Account records could not be saved or read.",
+          "Model connected.",
+          "The gateway could not be reached.",
+          "The gateway could not be reached.",
+          "Dedicated key recreated. Your connected models now use it.",
+          "Model connected.",
+          "Signed in to Iterate.",
+        ],
       },
     );
   } finally {

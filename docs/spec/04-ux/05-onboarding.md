@@ -28,6 +28,13 @@ the account step but leaves the guide visible until setup finishes. The generic
 provider/key checklist remains available as the fallback path for users who
 configure another OpenAI-compatible provider directly.
 
+The guide waits for persisted settings before rendering or querying the account,
+so a slow startup does not flash the first-run card. A dismissed guide performs
+no account query. If the settings store is unavailable, **Later** and completed
+setup remain uncommitted, report `STORAGE`, and keep the guide visible. A
+transient account-load failure renders an inline retry state; the user can
+retry or choose **Later** without losing the ability to enter the app.
+
 ## 3. Checklist steps
 
 The primary Iterate path has three steps:
@@ -58,6 +65,8 @@ The fallback direct-provider checklist retains:
 - after login, the guide discovers the first group's models and connects the
   first model whose response format is known; if no group or compatible model
   is available it keeps the guide visible and links to Settings → Iterate
+- initialization failure keeps a retry action and the normal **Later** escape
+  in the first-run card; an action failure does not replace the card
 - recharge and redemption open the third-party shop in its isolated app window
   only after an explicit confirmation that explains the hand-off
 - the model step deep-links to Settings → Iterate for a different choice
@@ -99,3 +108,6 @@ Example:
    exactly once
 6. Completing provider+key+prompt removes critical empty-state blocker
 7. User can dismiss optional parts without breaking app use
+8. The guide renders and queries only after settings load; a settings write
+   failure leaves it visible and reports the storage failure
+9. An account initialization failure offers both retry and **Later**

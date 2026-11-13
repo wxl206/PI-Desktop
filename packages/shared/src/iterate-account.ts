@@ -8,6 +8,7 @@ export type IterateOverview = {
   balance: { amount: number; unit: string } | null;
   redemptionEnabled: boolean;
   redemptionUncertain: boolean;
+  dedicatedKeyGroups: string[];
   updatedAt: string;
 };
 

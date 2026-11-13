@@ -51,6 +51,7 @@ function promptFixture({ mode = "agent", projectPath = null, skills = [], templa
       },
     }),
     acquireSessionOperation: async () => () => {},
+    acquireAccountAdmission: async () => () => {},
     finishTurn: async () => { assert.fail("no turn failure expected"); },
     emitAgentEvent() {}, setNotificationViewingSessionId() {},
     optionalWorkspaceRoot: async () => projectPath,

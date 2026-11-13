@@ -49,6 +49,7 @@ async function promptFixture({ unavailable = false, prepared } = {}) {
     activeTurns: new Map(), activeTurnUsages: new Map(),
     approvedExecutionIdsBySession: new Map(), claimedExecutionSessions: new Map(),
     recordTurnStart() {}, acquireSessionOperation: async () => () => {},
+    acquireAccountAdmission: async () => () => {},
     resolveAgentRuntimeLaunch: async () => ({
       providerId: "fixture", modelId: "fixture",
       sidecarParams: { sessionId: "s", mode: "review", provider: { modelConfig: { input: ["text"] } } },

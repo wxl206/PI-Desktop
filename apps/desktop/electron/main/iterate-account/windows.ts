@@ -7,12 +7,23 @@ export type AccountWindowLabels = {
   connecting: string;
 };
 
+function parseHttps(url: string): URL | null {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 /** These windows are never registered with BrowserHost, PluginViewHost or CDP tools. */
 export class AccountWindows {
   readonly website: Session;
   private readonly purchaseSession: Session;
   private readonly owned = new Set<BrowserWindow>();
   private loginWindow: BrowserWindow | null = null;
+  private consoleWindow: BrowserWindow | null = null;
+  private purchaseWindow: BrowserWindow | null = null;
   private pending: Promise<void> | null = null;
   private finish: ((error?: AccountError) => void) | null = null;
   private accepting = false;
@@ -74,21 +85,37 @@ export class AccountWindows {
       };
       this.website.webRequest.onBeforeSendHeaders({ urls: [`${ITERATE_ORIGIN}/api/*`] }, (details, callback) => {
         const authorization = Object.entries(details.requestHeaders).find(([name]) => name.toLowerCase() === "authorization")?.[1];
-        const eligible = this.loginWindow === window && details.webContentsId === window.webContents.id && new URL(details.url).origin === ITERATE_ORIGIN;
+        const eligible = this.loginWindow === window
+          && details.webContentsId === window.webContents.id
+          && parseHttps(details.url)?.origin === ITERATE_ORIGIN;
         callback({ requestHeaders: details.requestHeaders });
         if (!eligible || this.accepting || typeof authorization !== "string" || !authorization.startsWith("Bearer ")) return;
         this.accepting = true;
-        void client.accept(authorization.slice(7)).then(async () => {
-          if (this.loginWindow !== window) throw new AccountError("CANCELLED");
-          await onAccepted();
-          if (this.loginWindow === window) this.finish?.();
-        }).catch((error: unknown) => {
-          if (this.loginWindow !== window) return;
-          if (error instanceof AccountError && error.code === "STORAGE") this.finish?.(error);
-          else this.accepting = false;
-        });
+        void (async () => {
+          let accepted = false;
+          try {
+            await client.accept(authorization.slice(7));
+            accepted = true;
+            if (this.loginWindow !== window) throw new AccountError("CANCELLED");
+            await onAccepted();
+            if (this.loginWindow === window) this.finish?.();
+          } catch (error: unknown) {
+            if (this.loginWindow !== window) return;
+            // Once credentials were accepted, a commit failure is terminal for
+            // this attempt and must reach the renderer instead of leaving the
+            // login window open with no explanation.
+            if (accepted) {
+              client.clear();
+              this.finish?.(error instanceof AccountError ? error : new AccountError("STORAGE"));
+            } else {
+              this.accepting = false;
+            }
+          }
+        })();
       });
-      const restrict = (event: Electron.Event, url: string) => { if (new URL(url).origin !== ITERATE_ORIGIN) event.preventDefault(); };
+      const restrict = (event: Electron.Event, url: string) => {
+        if (parseHttps(url)?.origin !== ITERATE_ORIGIN) event.preventDefault();
+      };
       window.webContents.on("will-navigate", restrict);
       window.webContents.on("will-redirect", restrict);
       window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
@@ -99,9 +126,17 @@ export class AccountWindows {
   }
 
   async openConsole() {
+    if (this.consoleWindow && !this.consoleWindow.isDestroyed()) {
+      this.consoleWindow.show(); this.consoleWindow.focus();
+      return { opened: true };
+    }
     const window = this.create(this.labels().login, this.website);
+    this.consoleWindow = window;
+    window.on("closed", () => { if (this.consoleWindow === window) this.consoleWindow = null; });
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-    const restrict = (event: Electron.Event, url: string) => { if (new URL(url).origin !== ITERATE_ORIGIN) event.preventDefault(); };
+    const restrict = (event: Electron.Event, url: string) => {
+      if (parseHttps(url)?.origin !== ITERATE_ORIGIN) event.preventDefault();
+    };
     window.webContents.on("will-navigate", restrict); window.webContents.on("will-redirect", restrict);
     try { await this.loadWithSplash(window, `${ITERATE_ORIGIN}/console`); }
     catch { window.destroy(); throw new AccountError("NETWORK"); }
@@ -109,10 +144,17 @@ export class AccountWindows {
   }
 
   async purchase(url = ITERATE_SHOP) {
-    if (new URL(url).protocol !== "https:") throw new AccountError("PAYMENT_DOMAIN");
+    const initial = parseHttps(url);
+    if (!initial || initial.origin !== "https://catfk.com") throw new AccountError("PAYMENT_DOMAIN");
+    if (this.purchaseWindow && !this.purchaseWindow.isDestroyed()) {
+      this.purchaseWindow.show(); this.purchaseWindow.focus();
+      return { opened: true };
+    }
     const window = this.create(this.labels().purchase, this.purchaseSession);
+    this.purchaseWindow = window;
+    window.on("closed", () => { if (this.purchaseWindow === window) this.purchaseWindow = null; });
     const openApproved = async (target: string) => {
-      const parsed = new URL(target); if (parsed.protocol !== "https:") return;
+      const parsed = parseHttps(target); if (!parsed) return;
       if (!this.paymentOrigins.has(parsed.origin)) {
         const labels = this.labels();
         const choice = await dialog.showMessageBox(window, { type: "question", title: labels.purchase,
@@ -123,9 +165,10 @@ export class AccountWindows {
       await window.loadURL(target).catch(() => {});
     };
     const restrict = (event: Electron.Event, target: string) => {
-      const parsed = new URL(target);
-      if (parsed.protocol === "https:" && this.paymentOrigins.has(parsed.origin)) return;
-      event.preventDefault(); void openApproved(target);
+      const parsed = parseHttps(target);
+      if (parsed && this.paymentOrigins.has(parsed.origin)) return;
+      event.preventDefault();
+      if (parsed) void openApproved(target);
     };
     window.webContents.on("will-navigate", restrict); window.webContents.on("will-redirect", restrict);
     window.webContents.setWindowOpenHandler(({ url: target }) => { void openApproved(target); return { action: "deny" }; });

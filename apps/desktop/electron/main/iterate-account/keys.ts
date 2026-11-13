@@ -6,6 +6,10 @@ import type { AccountJournal, JournalStore, KeyRecord } from "./journal";
 export class AccountKeys {
   constructor(private readonly client: AccountClient, private readonly store: JournalStore) {}
 
+  private name(journal: AccountJournal): string {
+    return `iterate-pi-${journal.installation.slice(0, 8)}-${randomBytes(12).toString("hex")}`;
+  }
+
   private async search(name: string): Promise<Record<string, unknown>[]> {
     const matches: Record<string, unknown>[] = [];
     for (let page = 1; page <= 100; page++) {
@@ -21,12 +25,19 @@ export class AccountKeys {
     const user = this.client.id; if (!user) throw new AccountError("LOGIN_REQUIRED");
     let record = journal.records.find((item) => item.user === user && item.group === group);
     if (!record) {
-      record = { user, group, name: `iterate-pi-${journal.installation.slice(0, 8)}-${randomBytes(12).toString("hex")}`,
-        state: "prepared", tokenId: null, providers: [] };
+      record = { user, group, name: this.name(journal),
+        state: "prepared", tokenId: null, rotationPending: false, providers: [] };
       journal.records.push(record);
       await this.store.save(journal);
     }
     let matches = await this.search(record.name);
+    if (!matches.length && record.state === "pending") {
+      // The prior call already returned uncertainty and this explicit retry
+      // found no matching remote key. Reuse the same name instead of leaving
+      // the account permanently stranded on the first lost response.
+      record.state = "prepared";
+      await this.store.save(journal);
+    }
     if (!matches.length && record.state === "prepared") {
       record.state = "pending";
       await this.store.save(journal);
@@ -36,6 +47,7 @@ export class AccountKeys {
       });
       matches = await this.search(record.name);
     }
+    if (!matches.length && record.state === "created") throw new AccountError("KEY_CHANGED");
     if (matches.length !== 1) throw new AccountError("KEY_UNCERTAIN");
     const token = matches[0]; const id = positiveId(token.id);
     if (token.group !== group || token.status !== 1 || (token.user_id !== undefined && token.user_id !== user)
@@ -45,5 +57,30 @@ export class AccountKeys {
     await this.store.save(journal);
     const revealed = object(await this.client.request(`/api/token/${id}/key`, {}));
     return { record, key: secret(revealed.key) };
+  }
+
+  /**
+   * Forget the local key identity and create a new uniquely named key. The old
+   * remote key is deliberately left untouched because the user may also use it
+   * outside PI-Desktop.
+   */
+  async rotate(journal: AccountJournal, group: string): Promise<{ record: KeyRecord; key: string }> {
+    const user = this.client.id; if (!user) throw new AccountError("LOGIN_REQUIRED");
+    let record = journal.records.find((item) => item.user === user && item.group === group);
+    // A failed provider rebind leaves a durable marker and the already-created
+    // key identity. Retrying must reconcile that key, never mint a third one.
+    if (record?.rotationPending) return this.ensure(journal, group);
+    if (!record) {
+      record = { user, group, name: this.name(journal),
+        state: "prepared", tokenId: null, rotationPending: true, providers: [] };
+      journal.records.push(record);
+    } else {
+      record.name = this.name(journal);
+      record.state = "prepared";
+      record.tokenId = null;
+      record.rotationPending = true;
+    }
+    await this.store.save(journal);
+    return this.ensure(journal, group);
   }
 }

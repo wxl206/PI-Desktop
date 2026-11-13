@@ -11,6 +11,7 @@ import type { AgentExtensionBridge } from "../agent-extensions";
 import type { AgentHostBridge } from "../agent-host-bridge";
 import type { AgentSidecar } from "../agent-sidecar";
 import type { HostProcess } from "../host-process";
+import { acquireAccountThenSession } from "../iterate-account/admission";
 import type { Logger } from "../logger";
 import type { PersistenceOutbox } from "../persistence-outbox";
 import type { ComposerCommandService } from "./composer-ipc";
@@ -27,6 +28,8 @@ export type AgentIpcDependencies = {
   persistenceOutbox: PersistenceOutbox;
   dataDir: string;
   activeTurns: Map<string, string>;
+  /** Serializes turn/compaction admission with account provider changes. */
+  acquireAccountAdmission: () => Promise<() => void>;
   completionNoticeTurns: Set<string>;
   recordTurnStart: (sessionId: string, turnId: string) => void;
   /** Whether the named turn can still start or steer host work. */
@@ -92,6 +95,7 @@ export function registerAgentIpc({
   persistenceOutbox,
   dataDir,
   activeTurns,
+  acquireAccountAdmission,
   completionNoticeTurns,
   recordTurnStart,
   isTurnDispatchable,
@@ -216,7 +220,14 @@ export function registerAgentIpc({
       });
     }
     if (!host) throw new Error("host unavailable");
-    const releaseSessionOperation = await acquireSessionOperation(req.sessionId);
+    const admissions = await acquireAccountThenSession(
+      acquireAccountAdmission,
+      () => acquireSessionOperation(req.sessionId),
+    );
+    const releaseAccountAdmission = admissions.account;
+    let accountAdmissionHeld = true;
+    try {
+    const releaseSessionOperation = admissions.session;
     try {
     const sessionMessage = await resolveSessionMessageInput(host, req);
     // Install the renderer's prompt-time snapshot before any asynchronous
@@ -356,6 +367,8 @@ export function registerAgentIpc({
     }
     activeTurns.set(req.sessionId, durableTurnId);
     recordTurnStart(req.sessionId, durableTurnId);
+    releaseAccountAdmission();
+    accountAdmissionHeld = false;
     activeTurnUsages.delete(req.sessionId);
 
     // A staged mode claims its run for this durable turn before anything runs;
@@ -643,11 +656,16 @@ export function registerAgentIpc({
     } finally {
       releaseSessionOperation();
     }
+    } finally {
+      if (accountAdmissionHeld) releaseAccountAdmission();
+    }
   });
 
   handle(IPC.invoke.agentCompact, async (req: { sessionId: string }) => {
     rejectNativeAgentOperation(req.sessionId);
     if (!host || !sidecar) throw new Error("backend unavailable");
+    const releaseAccountAdmission = await acquireAccountAdmission();
+    try {
     if (activeTurns.has(req.sessionId)) {
       throw Object.assign(new Error("Session already has an active turn"), {
         errorCode: ErrorCodes.AGENT_BUSY,
@@ -693,6 +711,9 @@ export function registerAgentIpc({
       data: { providerId: launch.providerId, modelId: launch.modelId },
     });
     return result;
+    } finally {
+      releaseAccountAdmission();
+    }
   });
 
   handle(IPC.invoke.agentAbort, async (req: { sessionId: string; turnId?: string }) => {

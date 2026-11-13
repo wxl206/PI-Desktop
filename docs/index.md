@@ -9,7 +9,7 @@ hero:
   actions:
     - theme: brand
       text: Download
-      link: https://github.com/vastsa/PI-Desktop/releases/latest
+      link: https://github.com/wxl206/PI-Desktop/releases/latest
     - theme: alt
       text: Documentation
       link: /guide/

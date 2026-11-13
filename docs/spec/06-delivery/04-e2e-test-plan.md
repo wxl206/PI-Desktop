@@ -1781,7 +1781,14 @@ identify the platform validation still needed.
   guide remains available. 7) Open Settings → Iterate and verify that the group
   description includes the server-provided ratio. Connect a second model while
   a runnable existing default is present and verify that the existing default is
-  preserved.
+  preserved. 8) Mount the guide before persisted settings load, verify that it
+  neither renders nor queries the account, then inject a settings-write failure
+  and verify that storage failure leaves the guide visible. 9) Inject an account
+  overview failure and verify that both retry and Later remain available. 10)
+  Log in again and verify that Provider rows refresh. 11) Open key recreation,
+  cancel once, confirm once, and verify that the key/provider refresh occurs
+  only after confirmation. 12) Start a delayed overview request, sign out, and
+  verify that the stale response cannot restore the signed-in page.
 - **Expected**: The guide appears before the generic provider checklist and
   presents connection, recharge/redemption, and model selection in that order.
   Recharge never opens the third-party shop without explicit confirmation.
@@ -1791,12 +1798,21 @@ identify the platform validation still needed.
   first setup reuses the account and group's existing key when present, selects
   only a model with a known API style, and saves a runnable default only when
   the previous default cannot be used. The account page labels ratios as
-  server-provided rates without converting them into currency.
+  server-provided rates without converting them into currency. The guide waits
+  for settings, reports failed persistence without pretending to dismiss, and
+  keeps retry plus Later on an initialization failure. Login and key recreation
+  refresh Provider state after their Main-owned operation commits. A stale
+  account response cannot overwrite a later sign-out. While a local turn runs,
+  model connection, account switching, sign-out, and key recreation fail with
+  `TASKS_RUNNING`; an uncertain redemption blocks only the account that
+  submitted it until that user acknowledges it.
 - **Specs linked**: `04-ux/05-onboarding.md`
 - **Acceptance**: A (first-run Iterate guide)
 - **Milestone**: M2
 - **Status**: Automated
-  (`apps/desktop/test/iterate-onboarding-user-path.test.mjs`)
+  (`apps/desktop/test/iterate-onboarding-user-path.test.mjs`,
+  `apps/desktop/test/iterate-account.test.mjs`, and
+  `apps/desktop/test/iterate-provider-rpc.test.mjs`)
 
 ### Provider & Key
 

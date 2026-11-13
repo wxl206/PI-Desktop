@@ -207,6 +207,7 @@ export const IPC = {
     iterateLogout: "pi-desktop/iterate/logout",
     iterateDiscover: "pi-desktop/iterate/discover",
     iterateConnect: "pi-desktop/iterate/connect",
+    iterateRebuildKey: "pi-desktop/iterate/rebuildKey",
     iterateCopyKey: "pi-desktop/iterate/copyKey",
     iteratePurchase: "pi-desktop/iterate/purchase",
     iterateConsole: "pi-desktop/iterate/console",

@@ -1,10 +1,10 @@
+import type { AppSettings } from "@pi-desktop/shared";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { AppSettings } from "@pi-desktop/shared";
-import { api } from "../../../lib/api";
-import { useAppStore } from "../../../stores/app-store";
 import { IconCheck, IconCreditCard } from "../../../components/icons";
 import { Button } from "../../../components/ui";
+import { api } from "../../../lib/api";
+import { useAppStore } from "../../../stores/app-store";
 import { activateIterateConnection } from "./activate";
 import { failureKey } from "./failure";
 import { IteratePurchaseDialog } from "./IteratePurchaseDialog";
@@ -19,37 +19,83 @@ export function IterateWelcome() {
   const setPage = useAppStore((state) => state.setPage);
   const setSettingsTab = useAppStore((state) => state.setSettingsTab);
   const showToast = useAppStore((state) => state.showToast);
+  const settingsReady = Boolean(settings);
+  const dismissed = settings?.iterateWelcomeDismissed;
   const [visible, setVisible] = useState(false);
   const [connected, setConnected] = useState(false);
   const [busy, setBusy] = useState("");
   const [purchaseOpen, setPurchaseOpen] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadingOverview, setLoadingOverview] = useState(false);
   const alive = useRef(true);
+  const generation = useRef(0);
 
   const persist = async (patch: Partial<AppSettings>) => {
     const current = useAppStore.getState().settings;
-    if (!current) return;
+    if (!current) {
+      throw Object.assign(new Error("settings unavailable"), { code: "STORAGE" });
+    }
     const next = { ...current, ...patch };
     useAppStore.setState({ settings: next });
-    await api.setSettings(next).catch(() => undefined);
+    try {
+      await api.setSettings(next);
+    } catch (error) {
+      if (useAppStore.getState().settings === next) {
+        useAppStore.setState({ settings: current });
+      }
+      throw error;
+    }
   };
   const report = (error: unknown) =>
     showToast(t(`settings.iterateError.${failureKey(error)}`), { variant: "error" });
 
-  useEffect(() => {
-    alive.current = true;
-    if (settings?.iterateWelcomeDismissed === true) return () => { alive.current = false; };
-    void api.iterateOverview().then((overview) => {
-      if (!alive.current) return;
+  const initialize = async () => {
+    const token = ++generation.current;
+    setLoadingOverview(true);
+    try {
+      const overview = await api.iterateOverview();
+      if (!alive.current || token !== generation.current) return;
+      setLoadError(null);
       if (overview.user) setConnected(true);
       setVisible(true);
-    }).catch(() => { if (alive.current) setVisible(true); });
-    return () => { alive.current = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    } catch (error) {
+      if (!alive.current || token !== generation.current) return;
+      setLoadError(failureKey(error));
+      setVisible(true);
+    } finally {
+      if (alive.current && token === generation.current) setLoadingOverview(false);
+    }
+  };
+
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      generation.current++;
+    };
   }, []);
+
+  useEffect(() => {
+    if (!settingsReady) {
+      generation.current++;
+      setLoadingOverview(false);
+      return () => { generation.current++; };
+    }
+    if (dismissed === true) {
+      generation.current++;
+      setVisible(false);
+      setLoadingOverview(false);
+      return () => { generation.current++; };
+    }
+    void initialize();
+    return () => { generation.current++; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dismissed, settingsReady]);
 
   const connect = async () => {
     if (busy) return;
     setBusy("connect");
+    setLoadError(null);
     try {
       let overview = await api.iterateOverview();
       if (!overview.user) {
@@ -75,8 +121,8 @@ export function IterateWelcome() {
       }
       const connection = await api.iterateConnect(group.id, model.id);
       await activateIterateConnection(connection);
-      setVisible(false);
       await persist({ iterateWelcomeDismissed: true });
+      setVisible(false);
       showToast(t("settings.iterateConnected"), { variant: "success" });
     } catch (error) {
       report(error);
@@ -89,8 +135,46 @@ export function IterateWelcome() {
     setSettingsTab("iterate");
     setPage("settings");
   };
+  const dismiss = async () => {
+    if (busy) return;
+    setBusy("later");
+    try {
+      await persist({ iterateWelcomeDismissed: true });
+      setVisible(false);
+    } catch (error) {
+      report(error);
+    } finally {
+      if (alive.current) setBusy("");
+    }
+  };
 
   if (!visible) return null;
+
+  if (loadError) {
+    return (
+      <div
+        className="home-onboarding-checklist mx-auto w-full max-w-[560px] rounded-lg-plus border border-border-subtle bg-bg-elevated-opaque p-4 text-left shadow-none"
+        data-testid="iterate-welcome-error"
+      >
+        <div className="mb-1 text-md-plus font-medium text-text-primary">
+          {t("settings.iterateLoadErrorTitle")}
+        </div>
+        <p className="mb-3 text-sm text-text-secondary">
+          {t(`settings.iterateError.${loadError}`)}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="primary" size="sm" disabled={loadingOverview}
+            onClick={() => void initialize()}>
+            {loadingOverview ? t("settings.iterateWorking") : t("settings.iterateRefresh")}
+          </Button>
+          <Button type="button" variant="ghost" size="sm" disabled={Boolean(busy) || !settingsReady}
+            onClick={() => void dismiss()}>
+            {busy === "later" ? t("settings.iterateWorking") : t("settings.iterateWelcomeLater")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const step = (done: boolean) => (
     <span
@@ -116,10 +200,11 @@ export function IterateWelcome() {
           type="button"
           variant="ghost"
           size="sm"
+          disabled={Boolean(busy)}
           className="rounded-md px-1.5 py-0.5 text-xs-plus text-text-muted hover:bg-bg-hover hover:text-text-primary"
-          onClick={() => { setVisible(false); void persist({ iterateWelcomeDismissed: true }); }}
+          onClick={() => void dismiss()}
         >
-          {t("settings.iterateWelcomeLater")}
+          {busy === "later" ? t("settings.iterateWorking") : t("settings.iterateWelcomeLater")}
         </Button>
       </div>
       <p className="mb-2 text-sm text-text-secondary">{t("settings.iterateWelcomeHint")}</p>

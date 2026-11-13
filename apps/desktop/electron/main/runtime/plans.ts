@@ -1,5 +1,6 @@
 import { ErrorCodes, IPC, type AgentEventEnvelope, type AppNotification, type MessageUsage, type PlanExecution, type PlanExecutionFinishStatus, type UiMessage } from "@pi-desktop/shared";
 import { executionFromResponse, executionListFromResponse, planExecutionFromUnknown } from "@pi-desktop/host-runtime";
+import { acquireAccountThenSession } from "../iterate-account/admission";
 import type { RuntimeState } from "./context";
 import type {
   SessionCoordination,
@@ -63,6 +64,8 @@ export type PlanRuntimeDependencies = {
   announceTurnEnded: (payload: TurnEndedPayload) => void;
   emitAgentEvent: (envelope: AgentEventEnvelope) => void;
   acquireSessionOperation: (sessionId: string) => Promise<() => void>;
+  /** Serializes Provider resolution with account switching and key rotation. */
+  acquireAccountAdmission: () => Promise<() => void>;
   resolveAgentRuntimeLaunch: (...args: any[]) => Promise<any>;
   isQuitting: () => boolean;
   onTurnSettled?: (sessionId: string, turnId: string) => Promise<void>;
@@ -93,6 +96,7 @@ export function createPlanRuntime({
   announceTurnEnded,
   emitAgentEvent,
   acquireSessionOperation,
+  acquireAccountAdmission,
   resolveAgentRuntimeLaunch,
   isQuitting,
   onTurnSettled,
@@ -395,7 +399,14 @@ async function dispatchApprovedPlan(rawExecution: unknown): Promise<void> {
     logger.app("runtime", "warn", "approved plan execution descriptor was invalid");
     return;
   }
-  const releaseSessionOperation = await acquireSessionOperation(initial.sessionId);
+  const admissions = await acquireAccountThenSession(
+    acquireAccountAdmission,
+    () => acquireSessionOperation(initial.sessionId),
+  );
+  const releaseSessionOperation = admissions.session;
+  try {
+  const releaseAccountAdmission = admissions.account;
+  let accountAdmissionHeld = true;
   try {
   if (
     initial.state === "running" ||
@@ -473,6 +484,8 @@ async function dispatchApprovedPlan(rawExecution: unknown): Promise<void> {
     activeTurns.set(execution.sessionId, turnId);
     coordination.recordTurnStart(execution.sessionId, turnId);
     activeTurnUsages.delete(execution.sessionId);
+    releaseAccountAdmission();
+    accountAdmissionHeld = false;
     approvedExecutionIdsBySession.set(execution.sessionId, execution.id);
     approvedExecutionTurns.set(execution.id, {
       sessionId: execution.sessionId,
@@ -512,7 +525,11 @@ async function dispatchApprovedPlan(rawExecution: unknown): Promise<void> {
     });
   } finally {
       dispatchingApprovedExecutions.delete(initial.id);
-    }  } finally {
+    }
+  } finally {
+    if (accountAdmissionHeld) releaseAccountAdmission();
+  }
+  } finally {
     releaseSessionOperation();
   }
 

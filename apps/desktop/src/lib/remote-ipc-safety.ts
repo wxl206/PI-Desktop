@@ -14,7 +14,7 @@ const localOnly = new Set<string>([
   IPC.invoke.extensionsCommandRun, IPC.invoke.browserNavigate,
   IPC.invoke.fsResolveRef,
   IPC.invoke.iterateOverview, IPC.invoke.iterateLogin, IPC.invoke.iterateLogout,
-  IPC.invoke.iterateDiscover, IPC.invoke.iterateConnect, IPC.invoke.iterateCopyKey,
+  IPC.invoke.iterateDiscover, IPC.invoke.iterateConnect, IPC.invoke.iterateRebuildKey, IPC.invoke.iterateCopyKey,
   IPC.invoke.iteratePurchase, IPC.invoke.iterateConsole, IPC.invoke.iterateRedeem,
   IPC.invoke.iterateAcknowledgeRedemption,
 ]);

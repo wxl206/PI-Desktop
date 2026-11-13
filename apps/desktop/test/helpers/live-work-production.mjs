@@ -73,6 +73,7 @@ export async function createProductionWorkHarness(t, server, options = {}) {
     persistenceOutbox: { async flush() {} },
     dataDir: "/tmp/pi-live-work-production-fixture-data",
     activeTurns: new Map(), isTurnDispatchable: () => true, activeTurnUsages: new Map(),
+    acquireAccountAdmission: async () => () => {},
     recordTurnStart() {},
     approvedExecutionIdsBySession: new Map(), claimedExecutionSessions: new Map(),
     async resolveAgentRuntimeLaunch(_id, session) {

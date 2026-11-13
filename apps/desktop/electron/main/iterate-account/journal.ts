@@ -5,11 +5,12 @@ import { AccountError, object } from "./contract";
 export type KeyRecord = {
   user: number; group: string; name: string;
   state: "prepared" | "pending" | "created"; tokenId: number | null;
+  rotationPending: boolean;
   providers: Array<{ id: string; style: IterateApiStyle }>;
 };
 export type AccountJournal = {
-  version: 1; revision: number; installation: string;
-  activeUser: number | null; redemptionUser: number | null; records: KeyRecord[];
+  version: 2; revision: number; installation: string;
+  activeUser: number | null; redemptionUsers: number[]; records: KeyRecord[];
 };
 export type AccountHost = { call<T = unknown>(method: string, params?: unknown): Promise<T> };
 
@@ -26,9 +27,13 @@ export class JournalStore {
   }
   async read(): Promise<AccountJournal> {
     const value = await this.call<AccountJournal | null>("iterateAccount.get");
-    if (value === null) return { version: 1, revision: 0, installation: randomBytes(12).toString("hex"), activeUser: null, redemptionUser: null, records: [] };
+    if (value === null) return {
+      version: 2, revision: 0, installation: randomBytes(12).toString("hex"),
+      activeUser: null, redemptionUsers: [], records: [],
+    };
     // Host owns full validation; refuse protocol drift rather than silently replacing data.
-    if (object(value).version !== 1 || !Array.isArray(value.records)) throw new AccountError("STORAGE");
+    if (object(value).version !== 2 || !Array.isArray(value.redemptionUsers)
+      || !Array.isArray(value.records)) throw new AccountError("STORAGE");
     return value;
   }
   async save(journal: AccountJournal): Promise<void> {

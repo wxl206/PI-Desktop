@@ -77,6 +77,19 @@
   `sk-` 样式标记模式）位于 Electron main 中，`redact_value` 位于 host-core 中
   审计写入；通过无秘密泄漏烟雾检查验证
 - 错误消息不得回显完整按键
+- 「迭代」网站的 access token 只保留在 Electron Main 内存中，并且只发送到
+  固定的 `https://api.wxl206.xyz` 来源。不得把它写入账户日志、经 IPC 返回，
+  或传给 Renderer、Provider 行、插件及已配对的远程 Host。退出账户时清除
+  隔离的网站与购买分区。
+- 专用「迭代」模型 Key 仅在 Main 中短暂读取，并立即写入既有的 Host
+  Provider secret store。账户 IPC 只暴露 Key 是否存在；复制操作由 Main 直接
+  写入系统剪贴板。
+- 登录与控制台共用一个持久隔离网站分区。第三方充值页使用独立的非持久
+  分区，并且只在用户明确确认后打开。这些窗口拒绝权限、下载、弹窗、WebView、
+  DevTools、远程 Host 路由和离开获批 HTTPS 来源的顶层导航；新的支付来源必须
+  再次获得可见确认。
+- 账户 HTTP 请求固定来源、禁止重定向、30 秒超时，并将 JSON 响应限制为
+  4 MiB。远端响应正文和账户凭据都不会跨 IPC。
 
 ## 4. 工作区沙箱
 

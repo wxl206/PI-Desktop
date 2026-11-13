@@ -83,6 +83,7 @@ function promptFixture(commandService, projectPath = "/repo", remoteWorkspace) {
       sidecarParams: { sessionId: "target", provider: { modelConfig: { input: ["text"] } } },
     }),
     acquireSessionOperation: async () => () => { released = true; },
+    acquireAccountAdmission: async () => () => {},
     finishTurn: async () => { assert.fail("no turn failure expected"); },
     emitAgentEvent() {}, setNotificationViewingSessionId() {},
     optionalWorkspaceRoot: async () => projectPath,
