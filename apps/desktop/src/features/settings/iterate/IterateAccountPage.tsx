@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { IterateOverview } from "@pi-desktop/shared";
+import type { IterateModel, IterateOverview } from "@pi-desktop/shared";
 import { api } from "../../../lib/api";
 import { useAppStore } from "../../../stores/app-store";
 import { Badge, Button, Input } from "../../../components/ui";
 import { SettingsMenuSelect } from "../../../components/settings/SettingsMenuSelect";
 import { SettingsCard, SettingsRow } from "../primitives";
+import { activateIterateConnection } from "./activate";
+import { IteratePurchaseDialog } from "./IteratePurchaseDialog";
 import { failureKey } from "./failure";
 
 export function IterateAccountPage() {
@@ -16,9 +18,10 @@ export function IterateAccountPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [group, setGroup] = useState("");
-  const [models, setModels] = useState<{ id: string }[]>([]);
+  const [models, setModels] = useState<IterateModel[]>([]);
   const [model, setModel] = useState("");
   const [code, setCode] = useState("");
+  const [purchaseOpen, setPurchaseOpen] = useState(false);
   const alive = useRef(true);
   const generation = useRef(0);
 
@@ -53,12 +56,13 @@ export function IterateAccountPage() {
   });
   const discover = () => action("discover", async () => {
     const result = await api.iterateDiscover(group);
-    setModels(result.models); setModel(result.models[0]?.id ?? "");
-    if (!result.models.length) showToast(t("settings.iterateNoModels"), { variant: "error" });
+    const usable = result.models.filter((entry) => entry.styles.length > 0);
+    setModels(usable); setModel(usable[0]?.id ?? "");
+    if (!usable.length) showToast(t("settings.iterateNoModels"), { variant: "error" });
   });
   const connect = () => action("connect", async () => {
-    await api.iterateConnect(group, model);
-    await refreshProviders();
+    const connection = await api.iterateConnect(group, model);
+    await activateIterateConnection(connection);
     showToast(t("settings.iterateConnected"), { variant: "success" });
   });
   const redeem = () => action("redeem", async () => {
@@ -92,7 +96,7 @@ export function IterateAccountPage() {
         </div>
         <div className="settings-panel-actions iterate-actions">
           <Button disabled={Boolean(busy)} onClick={() => void load()}>{t("settings.iterateRefresh")}</Button>
-          <Button disabled={Boolean(busy)} onClick={() => action("purchase", () => api.iteratePurchase().then(() => {}))}>{t("settings.iteratePurchase")}</Button>
+          <Button disabled={Boolean(busy)} onClick={() => setPurchaseOpen(true)}>{t("settings.iteratePurchase")}</Button>
           <Button disabled={Boolean(busy)} onClick={() => action("console", () => api.iterateConsole().then(() => {}))}>{t("settings.iterateConsole")}</Button>
           <Button variant="ghost" disabled={Boolean(busy)} onClick={() => action("logout", async () => {
             await api.iterateLogout(); await refreshProviders(); setOverview(null); setModels([]);
@@ -116,7 +120,12 @@ export function IterateAccountPage() {
       <SettingsCard title={t("settings.iterateConnectTitle")} caption={t("settings.iterateConnectHint")}>
         <div className="iterate-form">
           <SettingsMenuSelect fullWidth label={t("settings.iterateGroup")} value={group}
-            disabled={Boolean(busy)} options={overview.groups.map((entry) => ({ id: entry.id, label: entry.description }))}
+            disabled={Boolean(busy)} options={overview.groups.map((entry) => ({
+              id: entry.id,
+              label: entry.ratio === null
+                ? entry.description
+                : `${entry.description} · ${t("settings.iterateGroupRatio", { ratio: entry.ratio })}`,
+            }))}
             onChange={(value) => { setGroup(value); setModels([]); setModel(""); }} />
           <Button disabled={Boolean(busy) || !group} onClick={() => void discover()}>{t("settings.iterateDiscover")}</Button>
         </div>
@@ -134,6 +143,7 @@ export function IterateAccountPage() {
           })}>{t("settings.iterateCopyKey")}</Button>
         </div>
       </SettingsCard>
+      {purchaseOpen ? <IteratePurchaseDialog onClose={() => setPurchaseOpen(false)} onError={report} /> : null}
     </div>
   );
 }

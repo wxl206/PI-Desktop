@@ -8418,3 +8418,21 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   keyboard, drag and accessibility, and the column geometry contract of D458
   holds: pill, label and native stop share one center for every stop count.
 - Escape clears a typed search first; a second Escape closes the menu.
+
+## 2026-11-13 — Adopt the supplied Iterate loop as the product mark (D686)
+
+- The supplied blue-to-purple loop and arrow now replaces the old PI
+  letterform across renderer chrome, the empty-home hero, Windows/macOS/Linux
+  packaging, the macOS menu-bar template, and the DMG install plate.
+- `build/icon_1024.png` remains the square packaging master. Its source mark
+  is alpha-cropped and centered at 76% of the canvas width, preserving
+  balanced transparent margins while keeping the horizontal artwork legible
+  in taskbar and dock sizes.
+- The renderer uses the source mark's 448x214 alpha crop directly as
+  `src/assets/brand/iterate-logo.png`. It does not need the old light/dark pair
+  or square padding and therefore keeps the sidebar and startup mark legible.
+- The empty-home hero and the sidebar are static and theme-neutral. The old
+  animated mascot GIFs and still-frame fallbacks are removed; reduced-motion
+  behavior now has no brand-specific work to perform.
+- `scripts/make-icon.py` writes a PNG-backed ICNS directly on Windows, macOS,
+  and Linux instead of making ICNS generation depend on macOS `iconutil`.

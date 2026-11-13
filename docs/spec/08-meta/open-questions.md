@@ -9,7 +9,8 @@
 - Sidecar packaging format → `ELECTRON_RUN_AS_NODE` on the Electron binary (D008)
 - Code signing / notarization operational setup → dual lanes + release runbook (D072)
 - App icon / brand mark v1 → canonical `build/icon_1024.png` with derived ICNS
-  (D079); renderer identity and shared `BrandLogo` usage → D094
+  (D079); renderer identity and shared `BrandLogo` usage → D094; supplied
+  Iterate loop artwork across renderer, packaging, tray, and DMG → D686
 - zh-CN locale timeline → zh-CN strings ship alongside English and are
   asserted by UI e2e scenarios (English remains the source language)
 - Application update ownership and delivery modes → D120 / ADR 0022

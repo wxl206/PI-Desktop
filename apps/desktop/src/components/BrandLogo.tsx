@@ -1,25 +1,12 @@
-import { useEffect, useState } from "react";
-// Renderer-sized copies of the brand marks. The 1024px masters in build/ are
-// installer icons for electron-builder; BrandLogo never renders above 64px.
-import brandLogoUrlLight from "../assets/brand/logo-light.png";
-import brandLogoUrlDark from "../assets/brand/logo-dark.png";
+// The cropped renderer asset keeps the horizontal Iterate mark legible at the
+// 20px sidebar size instead of shrinking it inside a mostly transparent square.
+import iterateLogoUrl from "../assets/brand/iterate-logo.png";
 
 export function BrandLogo({ size = 16 }: { size?: number }) {
-  const [dark, setDark] = useState(() => document.documentElement.dataset.theme !== "light");
-
-  useEffect(() => {
-    const el = document.documentElement;
-    const observer = new MutationObserver(() => {
-      setDark(el.dataset.theme !== "light");
-    });
-    observer.observe(el, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <img
       className="brand-logo"
-      src={dark ? brandLogoUrlDark : brandLogoUrlLight}
+      src={iterateLogoUrl}
       alt=""
       aria-hidden="true"
       width={size}

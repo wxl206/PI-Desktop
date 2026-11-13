@@ -196,7 +196,7 @@ ADR 记录那些不应被静默改变的架构选择。中文入口与英文索�
 | 0122 | [工作面板可见时预留原生宽度](/adr/0122-reserve-native-width-while-work-panel-visible) | 已被 ADR 0151 取代 |
 | 0123 | [Windows/Linux 窗口控制使用原生任务栏最小化](/adr/0123-native-taskbar-minimize-controls) | 已接受 |
 | 0124 | [将临时会话绑定到独立的临时工作区](/adr/0124-temporary-session-scratch-workspace) | 已接受 |
-| 0125 | [渲染器交付派生品牌标记与压缩输出](/adr/0125-renderer-derived-brand-marks-and-minified-output) | 已接受 |
+| 0125 | [渲染器交付派生品牌标记与压缩输出](/adr/0125-renderer-derived-brand-marks-and-minified-output) | 已接受（品牌资源路径由 D686 修订） |
 | 0126 | [Agent 能力页面是一个可创作的工作台](/adr/0126-agent-capability-workbench) | 已接受 |
 | 0127 | [转录布局索引与基于身份的截断](/adr/0127-transcript-layout-index-and-identity-truncation) | 已接受 |
 | 0128 | [瞬时 provider 故障的有界重试](/adr/0128-bounded-transient-provider-retry) | 已接受 |
@@ -222,7 +222,7 @@ ADR 记录那些不应被静默改变的架构选择。中文入口与英文索�
 | 0149 | [平静的转录运行状态动效](/adr/0149-calm-transcript-running-status-motion) | 已接受 |
 | 0150 | [内联 SVG 空首页 agent 标记](/adr/0150-inline-svg-empty-home-agent-mark) | 已被 ADR 0152 取代 |
 | 0151 | [将工作面板保持在固定应用窗口内](/adr/0151-internal-work-panel-dock) | 已接受 |
-| 0152 | [八帧空首页吉祥物 GIF](/adr/0152-eight-frame-empty-home-mascot-gif) | 已接受 |
+| 0152 | [八帧空首页吉祥物 GIF](/adr/0152-eight-frame-empty-home-mascot-gif) | 已被 D686 取代 |
 | 0153 | [在转录旁为流式回复建立检查点](/adr/0153-inflight-reply-checkpoint) | 已接受 |
 | 0154 | [在宿主 IO 之前显示新任务空目的地](/adr/0154-reveal-new-task-empty-destination) | 已接受 |
 | 0155 | [增加智谱 / Z.AI 命名端点预设](/adr/0155-zhipu-endpoint-presets) | 已接受 |

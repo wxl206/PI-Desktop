@@ -539,6 +539,7 @@ export function validateSettingsWrite(settings: AppSettings): AppSettings {
     infiniteProviderRetry?: unknown;
     jevEnabled?: unknown;
     smoothStreaming?: unknown;
+    iterateWelcomeDismissed?: unknown;
     sidebarRunningIndicators?: unknown;
     sidebarRunningBadge?: unknown;
     sidebarRunningRail?: unknown;
@@ -594,6 +595,14 @@ export function validateSettingsWrite(settings: AppSettings): AppSettings {
     typeof settings.scheduledTasksEnabled !== "boolean"
   ) {
     throw Object.assign(new Error("scheduledTasksEnabled is invalid"), {
+      errorCode: "INVALID_PARAMS",
+    });
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(settings, "iterateWelcomeDismissed") &&
+    typeof value.iterateWelcomeDismissed !== "boolean"
+  ) {
+    throw Object.assign(new Error("iterateWelcomeDismissed is invalid"), {
       errorCode: "INVALID_PARAMS",
     });
   }

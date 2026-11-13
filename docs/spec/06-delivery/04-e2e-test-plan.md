@@ -1765,6 +1765,39 @@ identify the platform validation still needed.
 - **Milestone**: M2
 - **Status**: Automated (protocol smoke: host onboarding state; UI checklist manual)
 
+#### E2E-004A: First-run Iterate account guide
+
+- **Preconditions**: Fresh profile or `iterateWelcomeDismissed` absent; no
+  Iterate account session; use an isolated login/purchase fixture.
+- **Steps**: 1) Launch the app and observe the empty home. 2) Open Recharge or
+  redeem credit, cancel the confirmation, and verify that no shop window opens.
+  3) Reopen the action, confirm, and verify that the shop opens once. 4) Choose
+  Later, relaunch, and verify that the guide stays hidden. 5) Reset the fixture,
+  choose Connect and create API key, and complete the isolated login. Verify the
+  first available group is used to create or reuse the dedicated key, unsupported
+  models are skipped, the first runnable model is connected, and it becomes the
+  default only because the fixture had no runnable default. 6) Repeat with a
+  restored account session but no completed key/model setup and verify that the
+  guide remains available. 7) Open Settings → Iterate and verify that the group
+  description includes the server-provided ratio. Connect a second model while
+  a runnable existing default is present and verify that the existing default is
+  preserved.
+- **Expected**: The guide appears before the generic provider checklist and
+  presents connection, recharge/redemption, and model selection in that order.
+  Recharge never opens the third-party shop without explicit confirmation.
+  Later and completed account/key/model setup persist
+  `iterateWelcomeDismissed`; restoring an account session alone does not. A
+  dismissed guide performs no account overview request on the next launch. The
+  first setup reuses the account and group's existing key when present, selects
+  only a model with a known API style, and saves a runnable default only when
+  the previous default cannot be used. The account page labels ratios as
+  server-provided rates without converting them into currency.
+- **Specs linked**: `04-ux/05-onboarding.md`
+- **Acceptance**: A (first-run Iterate guide)
+- **Milestone**: M2
+- **Status**: Automated
+  (`apps/desktop/test/iterate-onboarding-user-path.test.mjs`)
+
 ### Provider & Key
 
 #### E2E-169: Default model picker selects a configured model
@@ -4934,18 +4967,15 @@ window; opening a normal panel afterward must still work.
 - **Preconditions**: App running in both English and zh-CN locales, with an
   empty home and a docked transcript available.
 - **Steps**: 1) Inspect the expanded and collapsed sidebar. 2) Inspect the
-  empty-home hero and docked composer. 3) Observe the eight-frame mascot GIF
-  looping in place, move the pointer over it, and confirm its cadence and
-  geometry do not change. Enable reduced motion and confirm the still first
-  frame is shown. 4) Focus the footer Settings and Plugins icons, then each
-  project/Temporary session create control. 5) Open Settings and the composer
-  input.
+  empty-home hero and docked composer. 3) Observe the static blue-to-purple
+  Iterate loop and arrow mark. 4) Focus the footer Settings and Plugins icons,
+  then each project/Temporary session create control. 5) Open Settings and the
+  composer input.
 - **Expected**: Visible shell identity reads `PI-Desktop`; the empty-home hero
-  renders the theme-matching 100px `HomeMascotLogo` GIF with a short idle hold
-  and a looping wave. Pointer hover does not alter the cadence or geometry,
-  and reduced motion shows the matching still first frame.
-  The expanded/collapsed
-  sidebar renders the derived `src/assets/brand/logo-*.png` asset through `BrandLogo`
+  renders the 100px Iterate mark from the alpha-cropped
+  `src/assets/brand/iterate-logo.png` asset. The same mark remains legible in
+  light and dark chrome and has no animation. The expanded/collapsed sidebar
+  renders that asset through `BrandLogo`
   and the docked composer prompt row has no leading
   brand icon or reserved icon slot and its text aligns directly with the input
   gutter. The right Composer toolbar shows a Bot model × reasoning chip and
@@ -4958,9 +4988,8 @@ window; opening a normal panel afterward must still work.
   the external import-source label or in non-runtime design-reference text.
 - **Specs linked**: `04-ux/01-ui-ia.md`, `04-ux/07-ui-design-system.md`,
   `04-ux/08-component-spec.md`, `04-ux/09-interaction-patterns.md`,
-  `08-meta/decisions-log.md` (D094/D160/D293),
-  `../../adr/0031-icon-free-composer-prompt-row.md`,
-  `../../adr/0152-eight-frame-empty-home-mascot-gif.md`
+  `08-meta/decisions-log.md` (D094/D160/D686),
+  `../../adr/0031-icon-free-composer-prompt-row.md`
 - **Acceptance**: Quality (brand consistency and key operations feel polished)
 - **Milestone**: M5
 - **Status**: Unit-covered (`renderer-branding.test.mjs`); scenario Documented
@@ -7083,10 +7112,9 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   Windows/Linux render the canonical 20px logo beside the 15px shell name; the
   complete brand has a localized Home accessible name, visible hover/focus
   feedback, and returns the main pane to chat without clearing the active
-  conversation or workspace. The logo itself is theme-aware: light mode shows
-  `src/assets/brand/logo-light.png`,
-  dark mode shows `src/assets/brand/logo-dark.png`, swapping live with
-  `data-theme` (no reload).
+  conversation or workspace. The same alpha-cropped
+  `src/assets/brand/iterate-logo.png` remains legible without a theme-specific
+  swap or reload.
 - **Specs linked**: `04-ux/01-ui-ia.md`, `04-ux/07-ui-design-system.md`,
   `04-ux/08-component-spec.md`
 - **Acceptance**: Quality
@@ -7486,7 +7514,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   responses from older hosts. The native macOS close gesture remains a manual check.
 - **Specs**: `03-runtime/01-ipc-protocol.md`, ADR 0090.
 
-#### E2E-099: Brand logo follows the active theme
+#### E2E-099: Iterate brand logo remains legible across themes
 - **Status**: Draft
 - **Priority**: P3
 - **Covers**: Quality / US-UI shell polish
@@ -7494,20 +7522,16 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - **Steps**:
   1. In light mode, open the app shell, an empty chat home, and the expanded sidebar (Windows/Linux) or startup splash.
   2. Inspect the rendered `BrandLogo` source in the sidebar and startup splash,
-     and inspect the light eight-frame `HomeMascotLogo` GIF in the empty-home
-     hero. Hover the mascot and verify that its cadence does not change.
+     and inspect the static Iterate mark in the empty-home hero.
   3. Switch the theme to dark (Settings → Appearance → Interface, or system appearance change).
   4. Re-inspect the same surfaces without reloading.
   5. Switch back to light and re-inspect.
 - **Expected**:
-  - Light and dark mode render `src/assets/brand/logo-light.png` /
-    `src/assets/brand/logo-dark.png`
-    live in the sidebar and startup splash without a window reload.
-  - The empty-home hero renders the 100px eight-frame mascot GIF for the
-    active theme (`home-mascot-light.gif` / `home-mascot-dark.gif`) with a
-    short idle hold and a looping wave. Switching theme swaps the pair live
-    without a window reload. Pointer hover does not change the cadence;
-    under reduced motion the matching still first frame remains visible.
+  - Both themes render the same alpha-cropped
+    `src/assets/brand/iterate-logo.png` in the sidebar and startup splash.
+  - The empty-home hero renders the same static 100px mark. It has no
+    theme-specific asset pair, animation, pointer effect, or reduced-motion
+    fallback.
   - Sizes stay stable across theme changes (sidebar 20px, hero 100px, splash
     64px), and the marks stay decorative with no click, keyboard, or focus
     behavior.
@@ -11315,7 +11339,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | C / Quality — Self-hosted endpoint receives the session id | E2E-PROVIDER-custom-endpoint-session-identity |
 | B / F / Quality — Selected model order | E2E-MODEL-selected-order-persists |
 | E / F / Quality — MCP server timeout override | E2E-261 |
-| A — App startup | E2E-001, E2E-002, E2E-003, E2E-004, E2E-067, E2E-076, E2E-079, E2E-092, E2E-097, E2E-143, E2E-150, E2E-168, E2E-204 |
+| A — App startup | E2E-001, E2E-002, E2E-003, E2E-004, E2E-004A, E2E-067, E2E-076, E2E-079, E2E-092, E2E-097, E2E-143, E2E-150, E2E-168, E2E-204 |
 | A / C / F / Quality — Tray session navigation | E2E-TRAY-bounded-session-navigation |
 | B — Model config | E2E-005, E2E-PROVIDER-custom-endpoint-no-api-key, E2E-006, E2E-007, E2E-038, E2E-050, E2E-052, E2E-055, E2E-066, E2E-080, E2E-082, E2E-102c, E2E-102d, E2E-102e, E2E-151, E2E-154, E2E-163, E2E-166, E2E-172, E2E-174, E2E-197, E2E-005G, E2E-005J, E2E-199, E2E-201, E2E-202, E2E-203, E2E-205, E2E-206, E2E-209, E2E-PLUGIN-provider-catalog-add-service |
 | C — Conversation & stream | E2E-CHAT-long-history-stream-keeps-responsive, E2E-CHAT-running-status-survives-output-pauses, E2E-008, E2E-008d, E2E-008e, E2E-008a, E2E-009, E2E-010, E2E-011, E2E-011a, E2E-011b, E2E-011d, E2E-011e, E2E-011g, E2E-031, E2E-040, E2E-047, E2E-048, E2E-048A, E2E-049, E2E-052, E2E-053, E2E-054, E2E-055, E2E-059, E2E-059a, E2E-060c, E2E-060d, E2E-061, E2E-061a, E2E-062, E2E-064, E2E-065, E2E-068, E2E-071, E2E-073, E2E-074, E2E-075, E2E-081, E2E-083, E2E-084, E2E-086, E2E-087, E2E-088, E2E-088b, E2E-089, E2E-090, E2E-COMPOSER-narrow-controls, E2E-094, E2E-095, E2E-096, E2E-097, E2E-098, E2E-099, E2E-102, E2E-102a, E2E-102b, E2E-102c, E2E-102d, E2E-102g, E2E-106, E2E-109, E2E-111, E2E-114, E2E-116, E2E-117, E2E-118, E2E-119, E2E-120, E2E-121, E2E-218, E2E-259, E2E-219, E2E-AGENTS-001, E2E-142, E2E-144, E2E-145, E2E-146, E2E-146a, E2E-147, E2E-151, E2E-154, E2E-155, E2E-158, E2E-159, E2E-161, E2E-162, E2E-166, E2E-172, E2E-173, E2E-174, E2E-177, E2E-178, E2E-179, E2E-180, E2E-182, E2E-183, E2E-187, E2E-198, E2E-199, E2E-202, E2E-203, E2E-207, E2E-208, E2E-CHAT-content-width-handles, E2E-250, E2E-102i, E2E-PLUGIN-session-orchestrator-real-workers, E2E-SUBAGENT-settlement-updates-before-parent-poll, E2E-SUBAGENT-resume-a-settled-delegation |
@@ -11385,7 +11409,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 |---|---|
 | Post-MVP experimental interaction maintenance | E2E-LIVE-VOICE-four-stage-ui |
 | M1 | E2E-001, E2E-002, E2E-003, E2E-028, E2E-029 |
-| M2 | E2E-004, E2E-005, E2E-006, E2E-007, E2E-008, E2E-008d, E2E-008e, E2E-009, E2E-010, E2E-011, E2E-011a, E2E-011b, E2E-011d, E2E-011e, E2E-011g, E2E-020, E2E-021, E2E-021a, E2E-027, E2E-031, E2E-042, E2E-087, E2E-088, E2E-088b, E2E-089, E2E-090, E2E-COMPOSER-narrow-controls, E2E-144, E2E-005J, E2E-201, E2E-202, E2E-207, E2E-206 |
+| M2 | E2E-004, E2E-004A, E2E-005, E2E-006, E2E-007, E2E-008, E2E-008d, E2E-008e, E2E-009, E2E-010, E2E-011, E2E-011a, E2E-011b, E2E-011d, E2E-011e, E2E-011g, E2E-020, E2E-021, E2E-021a, E2E-027, E2E-031, E2E-042, E2E-087, E2E-088, E2E-088b, E2E-089, E2E-090, E2E-COMPOSER-narrow-controls, E2E-144, E2E-005J, E2E-201, E2E-202, E2E-207, E2E-206 |
 | M2 (sidebar menu placement) | E2E-021c |
 | M3 | E2E-012, E2E-013, E2E-014, E2E-015, E2E-016, E2E-017, E2E-018, E2E-019, E2E-040 |
 | M4 | E2E-022, E2E-023, E2E-024, E2E-025, E2E-026, E2E-030, E2E-038 |
@@ -11606,11 +11630,10 @@ This test plan spec is accepted when:
   row, with no Logo/Home brand or back/forward buttons.
 
 ### US-UI-17 PI-Desktop home hero logo
-- On empty chat home, the 100px `HomeMascotLogo` GIF renders above the title
-  as an eight-frame waving mascot with a short idle hold. Light and dark
-  themes each use a dedicated GIF and still PNG.
-- Pointer hover does not change the cadence or geometry; reduced motion shows
-  the matching still first frame. The mascot remains decorative.
+- On empty chat home, the static 100px Iterate loop and arrow mark renders
+  above the title. Both themes use the same alpha-cropped renderer asset.
+- The mark has no animation, pointer effect, or reduced-motion variant and
+  remains decorative.
 - Title is 28px / weight 400; active project name uses dotted underline (1px, offset 4px).
 - Composer does not render attachment or appshot controls before their payload
   reaches pi end to end.
@@ -12522,7 +12545,7 @@ This test plan spec is accepted when:
   on a covered window brings it to the front.
   Close to tray is the only Windows/Linux close path that hides the window,
   while Quit exits. On macOS the menu bar icon is a readable transparent
-  monochrome PI mark without the rounded application tile, and native minimize
+  monochrome Iterate loop mark, and native minimize
   remains tray-resident. Show/click/double-click/app activation restores the
   existing window; the localized menu contains Show PI-Desktop and Quit
   PI-Desktop. Quit runs the normal shutdown sequence and leaves no orphan host,

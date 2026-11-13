@@ -1,4 +1,5 @@
 export const GITHUB_REPO = "vastsa/PI-Desktop";
+export const GITHUB_FEEDBACK_REPO = "wxl206/PI-Desktop";
 export const GITHUB_BUG_TEMPLATE = "bug_report.yml";
 export const GITHUB_ISSUE_ORIGIN = "https://github.com";
 
@@ -31,7 +32,7 @@ export function formatFeedbackEnvironment(info: FeedbackIssueContext): string {
 }
 
 export function buildBugReportUrl(info: FeedbackIssueContext): string {
-  const url = new URL(`${GITHUB_ISSUE_ORIGIN}/${GITHUB_REPO}/issues/new`);
+  const url = new URL(`${GITHUB_ISSUE_ORIGIN}/${GITHUB_FEEDBACK_REPO}/issues/new`);
   url.searchParams.set("template", GITHUB_BUG_TEMPLATE);
   url.searchParams.set("app-version", info.version);
   url.searchParams.set("os", osLabelForFeedback(info.platform));
@@ -49,7 +50,7 @@ export function assertFeedbackIssueUrl(url: string): void {
   if (parsed.origin !== GITHUB_ISSUE_ORIGIN) {
     throw new Error("invalid feedback URL origin");
   }
-  if (parsed.pathname !== `/${GITHUB_REPO}/issues/new`) {
+  if (parsed.pathname !== `/${GITHUB_FEEDBACK_REPO}/issues/new`) {
     throw new Error("invalid feedback URL path");
   }
   if (parsed.searchParams.get("template") !== GITHUB_BUG_TEMPLATE) {

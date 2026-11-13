@@ -355,7 +355,8 @@ test("Windows/Linux explicit minimize paths use the native taskbar", () => {
     },
   ]);
   assert.match(iconScriptSource, /tray-icon-mac\.png/);
-  assert.match(iconScriptSource, /ImageChops\.multiply/);
+  assert.match(iconScriptSource, /master\.getchannel\("A"\)\.getbbox\(\)/);
+  assert.match(iconScriptSource, /mark\.putalpha\(tray_alpha\)/);
 });
 
 test("Windows taskbar minimize keeps the taskbar entry", () => {
@@ -421,5 +422,6 @@ test("desktop packaging builds the native host before every local target", () =>
   assert.equal(packageJson.build.linux.extraResources[0].to, "bin/pi-desktop-host-core");
   assert.equal(packageJson.build.mac.extraResources[0].to, "bin/pi-desktop-host-core");
   assert.match(iconScriptSource, /package_icon = BUILD \/ "icon\.png"/);
-  assert.match(iconScriptSource, /shutil\.which\("iconutil"\)/);
+  assert.match(iconScriptSource, /def _write_icns/);
+  assert.match(iconScriptSource, /\(b"ic10", 1024\)/);
 });

@@ -1,10 +1,12 @@
 # ADR 0152: Eight-frame empty-home mascot GIF
 
-- Status: Accepted
+- Status: Superseded by D686
 - Date: 2026-09-04
 - Deciders: PI-Desktop core
-- Related: D293, D294, E2E-046, E2E-099, US-UI-17
+- Related: D293, D294, D686, E2E-046, E2E-099, US-UI-17
 - Supersedes: ADR 0150
+
+> Superseded by D686: the Iterate product mark replaces the animated mascot.
 
 ## Context
 

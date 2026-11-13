@@ -90,6 +90,8 @@ export type AppSettings = {
   jevEnabled?: boolean;
   /** Prevent idle system sleep while this desktop app runs; off when absent. */
   keepAwakeWhileRunning?: boolean;
+  /** Hide the first-run Iterate connection guide after dismissal or success. */
+  iterateWelcomeDismissed?: boolean;
   /** Enable scheduled task UI, tools and new runs. Absent means enabled. */
   scheduledTasksEnabled?: boolean;
   /** Configured command shell for the agent Bash protocol tool. */

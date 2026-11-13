@@ -4,7 +4,7 @@ import {
   buildBugReportUrl,
   formatFeedbackEnvironment,
   GITHUB_BUG_TEMPLATE,
-  GITHUB_REPO,
+  GITHUB_FEEDBACK_REPO,
   osLabelForFeedback,
 } from "./github-feedback.js";
 
@@ -27,7 +27,8 @@ describe("GitHub feedback issue URL", () => {
   it("builds a GitHub issue-form URL with version, OS, and environment filled in", () => {
     const url = new URL(buildBugReportUrl(sample));
     expect(url.origin).toBe("https://github.com");
-    expect(url.pathname).toBe(`/${GITHUB_REPO}/issues/new`);
+    expect(GITHUB_FEEDBACK_REPO).toBe("wxl206/PI-Desktop");
+    expect(url.pathname).toBe(`/${GITHUB_FEEDBACK_REPO}/issues/new`);
     expect(url.searchParams.get("template")).toBe(GITHUB_BUG_TEMPLATE);
     expect(url.searchParams.get("app-version")).toBe("0.13.3");
     expect(url.searchParams.get("os")).toBe("macOS");
@@ -49,7 +50,7 @@ describe("GitHub feedback issue URL", () => {
     ).toThrow(/origin/);
     expect(() =>
       assertFeedbackIssueUrl(
-        "https://github.com/vastsa/PI-Desktop/issues/new?template=feature_request.yml",
+        "https://github.com/wxl206/PI-Desktop/issues/new?template=feature_request.yml",
       ),
     ).toThrow(/template/);
   });

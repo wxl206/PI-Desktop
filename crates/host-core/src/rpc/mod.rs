@@ -1,9 +1,9 @@
 mod background_jobs;
 mod computer_rpc;
 mod config_sync_rpc;
-mod iterate_account;
 mod file_batches;
 mod gen_ui;
+mod iterate_account;
 mod modes_rpc;
 mod plugin_reviews_rpc;
 mod remote_tools;
@@ -1039,6 +1039,16 @@ fn validate_settings_value(value: &Value) -> Result<(), JsonRpcError> {
     let Some(object) = value.as_object() else {
         return Ok(());
     };
+    if object
+        .get("iterateWelcomeDismissed")
+        .is_some_and(|enabled| !enabled.is_boolean())
+    {
+        return Err(rpc_err(
+            1002,
+            "iterateWelcomeDismissed must be a boolean",
+            "INVALID_PARAMS",
+        ));
+    }
     if object
         .get("scheduledTasksEnabled")
         .is_some_and(|enabled| !enabled.is_boolean())
@@ -11273,6 +11283,8 @@ mod update_settings_tests {
     fn validates_update_preference_and_reminder_version() {
         for value in [
             json!({}),
+            json!({"iterateWelcomeDismissed": true}),
+            json!({"iterateWelcomeDismissed": false}),
             json!({"updatePreference": "automatic"}),
             json!({"updatePreference": "manual"}),
             json!({"lastNotifiedUpdateVersion": "0.15.9"}),
@@ -11282,6 +11294,8 @@ mod update_settings_tests {
             assert!(validate_settings_value(&value).is_ok(), "{value}");
         }
         for value in [
+            json!({"iterateWelcomeDismissed": null}),
+            json!({"iterateWelcomeDismissed": "true"}),
             json!({"updatePreference": "sometimes"}),
             json!({"updatePreference": null}),
             json!({"lastNotifiedUpdateVersion": "  "}),

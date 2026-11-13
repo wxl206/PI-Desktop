@@ -1,6 +1,6 @@
 # ADR 0125: Renderer Ships Derived Brand Marks and Minified Output
 
-- Status: Accepted
+- Status: Accepted (renderer brand paths amended by D686)
 - Date: 2026-08-26
 - Related: ADR 0083, D079, D094
 - Baseline: `0.10.8`
@@ -37,13 +37,12 @@ about 277 MB, so the renderer is the only part worth tuning.
    values as assets. Stripping them later leaves the assets emitted. Only
    comma-prefixed fallback entries are removed, so a face whose single source
    is `woff` or `truetype` keeps it.
-3. `build/icon_1024.png` and `build/logo_dark.png` remain the canonical brand
-   masters and the source of truth for installer icons. This amends D079 and
-   D094 on one point: the renderer imports **derived** marks at
-   `apps/desktop/src/assets/brand/logo-light.png` and `logo-dark.png` instead
-   of the masters. The derived files are 192x192, covering a 64 px render at 3x
-   device pixel ratio. Regenerate them from the masters with `sips -Z 192`
-   whenever the canonical marks change; the visual identity is unchanged.
+3. `build/icon_1024.png` remains the canonical packaging master. This amends
+   D079 and D094 on one point: the renderer imports a derived mark instead of
+   the installer icon. D686 replaces the original two 192x192 theme images
+   with the supplied Iterate artwork's single 448x214 alpha crop at
+   `apps/desktop/src/assets/brand/iterate-logo.png`. The renderer-sizing
+   decision still holds; the old paths and theme pair no longer do.
 
 *(Superseded by [ADR 0298](0298-remove-bundled-fonts.md): the app ships no
 fonts, so there is nothing to subset.)* The two bundled CJK faces stayed

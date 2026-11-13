@@ -549,6 +549,29 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
 - **里程碑**：M2
 - **状态**：自动（协议烟雾：主机加入状态；UI 清单手册）
 
+#### E2E-004A：「迭代」首次运行账户引导
+
+- **先决条件**：全新配置，或 `iterateWelcomeDismissed` 缺失；没有「迭代」
+  账户会话；登录、购买和模型接口使用隔离夹具。
+- **步骤**：1) 启动应用并观察空首页。2) 打开“充值或兑换额度”，取消确认，
+  确认商店没有打开。3) 再次打开并确认，确认商店只打开一次。4) 选择“稍后”，
+  重启后确认引导保持隐藏。5) 重置夹具，选择“连接并创建 API Key”，完成隔离
+  登录。确认首个可用分组用于创建或复用专用 Key、跳过协议未知的模型、接入首个
+  可运行模型，并仅在没有可运行默认模型时将其设为默认。6) 改用已恢复账户但没有
+  完成 Key/模型接入的会话，确认引导继续可见。7) 打开设置 →「迭代」，确认分组
+  描述包含服务端返回的倍率；在已有可运行默认模型时接入第二个模型，确认默认
+  模型保持不变。
+- **预期**：引导显示在通用服务商清单之前，并依次提供连接、充值/兑换和模型
+  选择。充值必须经过明确确认，确认前不会打开第三方商店。选择“稍后”或完成
+  账户/Key/模型接入都会持久化 `iterateWelcomeDismissed`；仅恢复账户会话不会。
+  再次启动时，已隐藏的引导不会查询账户。首次接入复用已有专用 Key，只选择协议
+  已知的模型，且仅在原默认模型不可用时保存新默认。账户页将倍率标为服务端提供
+  的比率，不自行换算为货币。
+- **链接规格**：`04-ux/05-onboarding.md`
+- **验收**：A（首次运行「迭代」引导）
+- **里程碑**：M2
+- **状态**：自动（`apps/desktop/test/iterate-onboarding-user-path.test.mjs`）
+
 ### 提供商和密钥
 
 #### E2E-169：默认模型选择器选择已配置模型
@@ -2275,16 +2298,13 @@ palettes remain fixed across OS changes; repeat after shutdown/restart.
 - **先决条件**：应用程序在英语和中中文语言环境中运行，并带有
   空荡荡的家和可用的停靠成绩单。
 - **步骤**：1) 检查展开和折叠的侧边栏。 2) 检查
-  空荡荡的英雄和停靠的输入框。 3) 观察八帧吉祥物 GIF 原地循环，
-  将指针移到其上并确认节奏与几何形状不变。开启减少动态
-  效果并确认显示静止首帧。 4）关注页脚设置和插件
-  图标，然后每个 project/Temporary 会话创建控件。 5）打开设置
-  和输入框输入。
+  空首页英雄和停靠的输入框。3) 观察静态蓝紫渐变 Iterate
+  循环箭头标识。4) 关注页脚设置和插件图标，然后检查每个
+  project/Temporary 会话创建控件。5) 打开设置和输入框输入。
 - **预期**：可见 shell 标识为 `PI-Desktop`；空荡荡的家英雄
-  渲染与当前主题匹配的 100px `HomeMascotLogo` GIF，首帧短暂停留后循环挥手；
-  指针悬停不改变节奏或几何形状，减少运动时显示对应静止首帧。
-  expanded/collapsed
-  侧边栏通过 `BrandLogo` 呈现派生的 `src/assets/brand/logo-*.png` 资源
+  通过 `src/assets/brand/iterate-logo.png` 在 100px 槽位中显示透明裁切的
+  Iterate 标识；同一资源在明暗主题下都清晰可见，并且没有动画。
+  expanded/collapsed 侧边栏通过 `BrandLogo` 呈现同一资源
   并且停靠的输入框提示行没有前导
   品牌图标或保留图标槽及其文本直接与输入对齐
   天沟。页脚设置和插件操作是紧凑的图标按钮；
@@ -2294,7 +2314,7 @@ palettes remain fixed across OS changes; repeat after shutdown/restart.
   外部导入源标签或非运行时设计参考文本。
 - **链接规格**：`04-ux/01-ui-ia.md`、`04-ux/07-ui-design-system.md`、
   `04-ux/08-component-spec.md`、`04-ux/09-interaction-patterns.md`、
-  `08-meta/decisions-log.md`（D094/D160），
+  `08-meta/decisions-log.md`（D094/D160/D686），
   `../../adr/0031-icon-free-composer-prompt-row.md`
 - **验收**：质量（品牌一致性和关键操作感觉很精致）
 - **里程碑**：M5
@@ -3663,10 +3683,9 @@ PI-Desktop 图标；两个表面都不会暴露库存 Electron 名称或图标�
   Windows/Linux 在 15px shell 名称旁边渲染规范的 20px 徽标；这
 完整的品牌有一个本地化的主页可访问名称，可见 hover/focus
   反馈，并返回主窗格进行聊天，而不清除活动的
-  对话或工作空间。的
-  徽标本身具有主题感知：浅色模式显示 `src/assets/brand/logo-light.png`，
-  深色模式显示 `src/assets/brand/logo-dark.png`，与 `data-theme` 实时交换
-  （无需重新加载）。
+  对话或工作空间。同一枚透明裁切的
+  `src/assets/brand/iterate-logo.png` 在明暗主题下都保持清晰，
+  不需要主题图片切换或重新加载。
 - **链接规格**：`04-ux/01-ui-ia.md`、`04-ux/07-ui-design-system.md`、
   `04-ux/08-component-spec.md`
 - **验收**：质量
@@ -3860,7 +3879,7 @@ IPC 请求无法关闭。
 - **链接规格**：`04-ux/07-ui-design-system.md` §8、`04-ux/02-i18n-english-first.md`、`04-ux/09-interaction-patterns.md` 第 1.12 节、ADR 0338、决策日志 D146 / D304 / D348 / D679
 - **验收**：A（应用程序启动），质量
 - **里程碑**：M5
-#### E2E-099：品牌标志遵循活跃主题
+#### E2E-099：Iterate 品牌标识在明暗主题下保持清晰
 - **状态**：草案
 - **优先级**：P3
 - **封面**：品质/US-UI 外壳抛光
@@ -3868,19 +3887,15 @@ IPC 请求无法关闭。
 - **步骤**：
   1. 在轻型模式下，打开应用程序外壳、空的聊天主页和展开的侧边栏 (Windows/Linux) 或启动画面。
   2. 检查侧边栏和启动画面中渲染的 `BrandLogo` 源，
-     并检查空首页英雄中的浅色八帧 `HomeMascotLogo` GIF。
-     将鼠标悬停在吉祥物上并验证节奏不变。
+     并检查空首页英雄中的静态 Iterate 标识。
   3. 将主题切换为深色（设置→常规→外观，或系统外观更改）。
   4. 重新检查相同的表面，无需重新加载。
   5. 切换回光源并重新检查。
 - **预期**：
-  - 明暗模式渲染 `src/assets/brand/logo-light.png` /
-    `src/assets/brand/logo-dark.png`
-    位于侧边栏和启动画面中，无需重新加载窗口。
-- 空首页英雄按当前主题渲染 100 像素的八帧吉祥物 GIF
-    （`home-mascot-light.gif` / `home-mascot-dark.gif`），首帧短暂停留后
-    循环挥手。切换主题时即时更换资源，无需重新加载窗口。指针悬停
-    不改变节奏；减少运动时对应静止首帧仍然可见。
+  - 明暗主题在侧边栏和启动画面中渲染同一份透明裁切资源
+    `src/assets/brand/iterate-logo.png`。
+  - 空首页英雄显示同一枚静态 100px 标识；它没有主题资源对、动画、
+    指针效果或减少动态效果备用图。
   - 尺寸在主题变化时保持稳定（侧边栏 20 像素、英雄 100 像素、启动栏
     64px），标记保持装饰性，无需点击、键盘或焦点
     行为。
@@ -6119,7 +6134,7 @@ eleven-tool-round desktop paths are verified by
 | B / F / Quality — 已选模型顺序 | E2E-MODEL-selected-order-persists |
 | E / F / Quality — MCP 服务器超时覆盖 | E2E-261 |
 | C / D / Quality — 折叠项目后重置会话历史 | E2E-263 |
-| A — 应用程序启动 | E2E-001、E2E-002、E2E-003、E2E-004、E2E-067、E2E-076、E2E-079、E2E-092、E2E-097、E2E-143、E2E-150、E2E-168、E2E-204、E2E-217 |
+| A — 应用程序启动 | E2E-001、E2E-002、E2E-003、E2E-004、E2E-004A、E2E-067、E2E-076、E2E-079、E2E-092、E2E-097、E2E-143、E2E-150、E2E-168、E2E-204、E2E-217 |
 | B——模型配置 | E2E-005、E2E-005G、E2E-006、E2E-007、E2E-038、E2E-050、E2E-052、E2E-055、E2E-066、E2E-080、E2E-082、E2E-151、E2E-005J、E2E-199、E2E-201、E2E-202、E2E-203、E2E-209、E2E-166 |
 | C — 对话和直播 | E2E-CHAT-running-status-survives-output-pauses、E2E-008、E2E-008d、E2E-008a、E2E-009、E2E-010、E2E-011、E2E-011a、E2E-011b、E2E-031、E2E-040、E2E-047、E2E-048、E2E-048c、E2E-048A、E2E-049、E2E-052、 E2E-053、E2E-054、E2E-055、E2E-059、E2E-059a、E2E-060c、E2E-060d、E2E-061、E2E-061a、E2E-062、E2E-064、E2E-065、E2E-068、E2E-071、 E2E-073、E2E-074、E2E-075、E2E-081、E2E-083、E2E-084、E2E-086、E2E-087、E2E-088、E2E-088b、E2E-089、E2E-090、E2E-094、E2E-095、E2E-096、 E2E-097、E2E-098、E2E-099、E2E-102、E2E-102a、E2E-102b、E2E-106、E2E-109、E2E-111、E2E-114、E2E-116、E2E-117、E2E-118、E2E-119、 E2E-120、E2E-121、E2E-代理-001、E2E-142、E2E-144、E2E-145、E2E-146、E2E-147、E2E-151、E2E-199、E2E-250、E2E-166、E2E-SUBAGENT-resume-a-settled-delegation |
 | C — 对话和直播（输入框草稿） | E2E-011c、E2E-011c-1、E2E-011c-2 |
@@ -6188,7 +6203,7 @@ eleven-tool-round desktop paths are verified by
 |---|---|
 | MVP 后实验性交互维护 | E2E-LIVE-VOICE-four-stage-ui |
 | M1 | E2E-001、E2E-002、E2E-003、E2E-028、E2E-029 |
-| M2 | E2E-004、E2E-005、E2E-006、E2E-007、E2E-008、E2E-008d、E2E-009、E2E-010、E2E-011、E2E-011a、E2E-011b、E2E-020、E2E-021、E2E-027、E2E-031、E2E-042、E2E-087、E2E-088、E2E-088b、E2E-089、E2E-090、E2E-144、E2E-005J、E2E-201 |
+| M2 | E2E-004、E2E-004A、E2E-005、E2E-006、E2E-007、E2E-008、E2E-008d、E2E-009、E2E-010、E2E-011、E2E-011a、E2E-011b、E2E-020、E2E-021、E2E-027、E2E-031、E2E-042、E2E-087、E2E-088、E2E-088b、E2E-089、E2E-090、E2E-144、E2E-005J、E2E-201 |
 | M2（侧边栏菜单定位） | E2E-021c |
 | M3 | E2E-012、E2E-013、E2E-014、E2E-015、E2E-016、E2E-017、E2E-018、E2E-019、E2E-040 |
 | M4 | E2E-022、E2E-023、E2E-024、E2E-025、E2E-026、E2E-030、E2E-038 |
@@ -6403,11 +6418,9 @@ eleven-tool-round desktop paths are verified by
   行，没有 Logo/Home 品牌或 back/forward 按钮。
 
 ### US-UI-17 PI-Desktop 家庭英雄标志
-- 在空聊天主页上，100px `HomeMascotLogo` GIF 在标题上方呈现
-  八帧挥手吉祥物，并在首帧稍作停留。浅色和深色主题各使用一套
-  GIF 和静止 PNG。
-- 指针悬停不改变节奏或几何形状；减少运动时显示对应静止
-  首帧。吉祥物保持装饰性。
+- 在空聊天主页上，标题上方显示静态 100px Iterate 循环箭头标识。
+  明暗主题共用同一份透明裁切资源。
+- 该标识没有动画或指针效果，减少动态效果时无需替换资源，并保持装饰性。
 - 标题为 28px / 粗细为 400；活动项目名称使用点下划线（1 像素，偏移 4 像素）。
 - Composer 不会在有效负载之前渲染附件或 appshot 控件
   首尾相连达到 pi。

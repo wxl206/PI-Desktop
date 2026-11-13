@@ -38,9 +38,11 @@ Electron 43+ 上的首次 `pnpm dev` 会按需下载 Electron 二进制文件
 （该包不再在 `pnpm install` 期间安装它）。
 打包通道在 macOS 上通过 electron-builder 使用 `build/icon.icns`，并在
 Windows 可执行文件和原生窗口图标中使用 `build/icon.ico`。渲染器通过
-`BrandLogo` 导入相同的 PNG。PNG 是规范来源；`scripts/make-icon.py` 派生
-多尺寸 Windows ICO、512px Windows/Linux 包 PNG，以及 iconset/ICNS（当 macOS
-`iconutil` 可用时），无需覆盖规范来源。
+`BrandLogo` 导入透明裁切的 Iterate 标识
+`src/assets/brand/iterate-logo.png`。方形 PNG 是打包母版；
+`scripts/make-icon.py` 在任意平台派生多尺寸 Windows ICO、512px
+Windows/Linux 包 PNG、透明单色菜单栏资源，以及 PNG-backed ICNS，
+无需覆盖规范来源。
 
 ## 2. 先决条件（发布通道）
 
@@ -420,9 +422,9 @@ Electron 目标布局。
 - **旧字体格式被剔除。** `pi-drop-legacy-font-fallbacks` 插件会在 Vite 把
   `woff` 与 `truetype` 的 `src` 条目注册为资源之前移除它们。随包的 Chromium
   普遍支持 `woff2`，这些字形只会被产出而永远不会被使用。
-- **品牌标识按渲染器尺寸提供。** `src/assets/brand/logo-{light,dark}.png` 是
-  渲染器资源；`build/icon_1024.png` 与 `build/logo_dark.png` 是
-  electron-builder 的安装包图标，渲染器不得引用。
+- **品牌标识按渲染器尺寸提供。** 透明裁切的
+  `src/assets/brand/iterate-logo.png` 是渲染器资源；
+  `build/icon_1024.png` 是 electron-builder 的安装包母版，渲染器不得引用。
 
 应用这三项控制后于 2026-08-26 测得的渲染器产物，对照同一棵树在 `v0.10.8`
 的状态：

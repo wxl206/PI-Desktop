@@ -37,11 +37,12 @@ The first `pnpm dev` on Electron 43+ downloads the Electron binary on demand
 (the package no longer installs it during `pnpm install`).
 Packaged lanes use `build/icon.icns` through electron-builder on macOS and
 `build/icon.ico` for the Windows executable and native window icon. The
-renderer imports the same PNG through `BrandLogo`. The PNG is canonical;
-`scripts/make-icon.py` derives the multi-size Windows ICO, the 512px
-Windows/Linux package PNG, the
-transparent monochrome `build/tray-icon-mac.png` template, and the iconset/ICNS
-when macOS `iconutil` is available, without overwriting the canonical source.
+renderer imports the alpha-cropped Iterate mark from
+`src/assets/brand/iterate-logo.png` through `BrandLogo`. The square PNG is the
+packaging master; `scripts/make-icon.py` derives the multi-size Windows ICO,
+the 512px Windows/Linux package PNG, the transparent monochrome
+`build/tray-icon-mac.png` template, and the PNG-backed ICNS directly on every
+platform, without overwriting the canonical source.
 
 ## 2. Prerequisites (release lane)
 
@@ -87,9 +88,9 @@ when macOS `iconutil` is available, without overwriting the canonical source.
   independently of Chromium locales.
 - App icons `build/icon.icns` and `build/icon.ico` (derived from canonical
   `build/icon_1024.png` by `scripts/make-icon.py`).
-- macOS menu bar template `build/tray-icon-mac.png`, derived from the dark PI
-  mark with a transparent background; Windows/Linux use the product PNG tray
-  resource.
+- macOS menu bar template `build/tray-icon-mac.png`, derived from the Iterate
+  loop mark with a transparent background; Windows/Linux use the product PNG
+  tray resource.
 
 ## 4. Release steps
 
@@ -515,9 +516,10 @@ publication:
   plugin removes `woff` and `truetype` `src` entries before Vite registers
   them as assets. The bundled Chromium supports `woff2` universally, so those
   faces would be emitted and never served.
-- **Brand marks are renderer-sized.** `src/assets/brand/logo-{light,dark}.png`
-  are the renderer assets. `build/icon_1024.png` and `build/logo_dark.png` are
-  electron-builder installer icons and must not be imported by the renderer.
+- **Brand marks are renderer-sized.** The alpha-cropped
+  `src/assets/brand/iterate-logo.png` is the renderer asset.
+  `build/icon_1024.png` is the electron-builder packaging master and must not
+  be imported by the renderer.
 
 Renderer output measured on 2026-08-26 after applying these three controls,
 against the same tree at `v0.10.8`:

@@ -272,8 +272,8 @@ Outer frame that positions Topbar, Sidebar, MainChat, and WorkPanel. Owns resize
   window before showing a themed confirmation with Cancel focused. Escape or a
   backdrop click cancels. If the main renderer is unavailable, a native warning
   is the bounded fallback before shutdown (D363). On macOS the tray uses a
-  transparent monochrome template of the PI mark rather than the rounded
-  application tile, so it remains readable in the menu bar.
+  transparent monochrome template of the Iterate loop mark, so it remains
+  readable in the menu bar.
 - Windows/Linux do not render File/Edit/View/Window/Help in the titlebar and
   do not reserve left-side space for an application menubar. F10 and
   Shift+F10 remain available to focused content.
@@ -780,20 +780,14 @@ visually distinct from list content.
   conversation topbar toggle, and the composer's add/enhance/undo controls all
   render the same 28px square target as the topbar and work-panel actions
   instead of a wider-than-tall pill.
-- `BrandLogo` imports the renderer-sized marks derived from the canonical
-  masters through Vite: `src/assets/brand/logo-light.png` for light mode and
-  `src/assets/brand/logo-dark.png` for dark mode (192x192, covering the 64 px
-  splash at 3x; ADR 0125). The component subscribes to
-  `document.documentElement[data-theme]` via a `MutationObserver` and swaps the
-  source at runtime for the sidebar and startup splash without a reload. The
-  empty-home hero uses `HomeMascotLogo` as a 100px eight-frame GIF. Light and
-  dark themes each have a dedicated GIF plus still PNG. CSS follows
-  `document.documentElement[data-theme]` without a reload; anything other than
-  `light` uses the dark artwork. The mascot loops a processed wave with a
-  short idle hold on the first frame. Playback is native to the GIF and does
-  not change on pointer hover; reduced motion swaps to the matching still
-  first-frame PNG. The expanded/collapsed sidebar remains 20px/18px and the
-  startup splash 64px.
+- `BrandLogo` imports the alpha-cropped Iterate mark from
+  `src/assets/brand/iterate-logo.png` through Vite (D686). The 448x214 artwork
+  contains the supplied blue-to-purple loop and arrow with only its transparent
+  bounds removed, so it stays legible at the 20px sidebar size and uses the
+  same asset in light and dark themes without a runtime source swap. The
+  empty-home hero renders the same asset inside its retained 100px
+  `HomeMascotLogo` slot. The mark is static and decorative. The
+  expanded/collapsed sidebar remains 20px/18px and the startup splash 64px.
   Home and thread-docked composer prompt rows do not render a leading brand
   icon.
 - Project and Temporary session creation controls render the dedicated

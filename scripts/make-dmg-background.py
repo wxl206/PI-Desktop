@@ -126,9 +126,23 @@ def _arrow(base: Image.Image) -> None:
 
 
 def _wordmark(base: Image.Image) -> None:
-    mark_size = _px(26)
+    max_mark_width = _px(58)
+    max_mark_height = _px(30)
     with Image.open(ICON_SOURCE) as source:
-        mark = source.convert("RGBA").resize((mark_size, mark_size), Image.LANCZOS)
+        source_mark = source.convert("RGBA")
+        bounds = source_mark.getchannel("A").getbbox()
+        if bounds is None:
+            raise ValueError("canonical logo alpha channel is empty")
+        source_mark = source_mark.crop(bounds)
+        scale = min(
+            max_mark_width / source_mark.width,
+            max_mark_height / source_mark.height,
+        )
+        mark_size = (
+            max(1, round(source_mark.width * scale)),
+            max(1, round(source_mark.height * scale)),
+        )
+        mark = source_mark.resize(mark_size, Image.LANCZOS)
 
     title_font = _font("/System/Library/Fonts/HelveticaNeue.ttc", 21, index=10)
     caption_font = _font("/System/Library/Fonts/HelveticaNeue.ttc", 13, index=0)
@@ -138,12 +152,12 @@ def _wordmark(base: Image.Image) -> None:
     title = "PI-Desktop"
     x0, y0, x1, y1 = draw.textbbox((0, 0), title, font=title_font)
     gap = _px(10)
-    cluster_w = mark_size + gap + (x1 - x0)
+    cluster_w = mark.width + gap + (x1 - x0)
     left = _px(WIDTH / 2) - cluster_w // 2
-    top = _px(42) - mark_size // 2
+    top = _px(42) - mark.height // 2
     base.alpha_composite(mark, (left, top))
     draw.text(
-        (left + mark_size + gap - x0, _px(42) - (y1 - y0) // 2 - y0),
+        (left + mark.width + gap - x0, _px(42) - (y1 - y0) // 2 - y0),
         title,
         font=title_font,
         fill=INK,

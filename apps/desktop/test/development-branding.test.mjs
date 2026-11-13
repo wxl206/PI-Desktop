@@ -39,6 +39,9 @@ const protocolSource = await readFile(
 const windowsIcon = await readFile(
   new URL("../build/icon.ico", import.meta.url),
 );
+const macIcon = await readFile(
+  new URL("../build/icon.icns", import.meta.url),
+);
 
 test("Windows runtime registers the canonical native application identity", () => {
   const appId = protocolSource.match(/APP_ID = "([^"]+)"/)?.[1];
@@ -108,6 +111,28 @@ test("macOS icon derivation preserves the canonical renderer asset", () => {
     iconScriptSource,
     /\.save\(BUILD \/ "icon_1024\.png"\)/,
   );
+  assert.match(iconScriptSource, /def _write_icns/);
+  assert.match(iconScriptSource, /\(b"icp4", 16\)/);
+  assert.match(iconScriptSource, /\(b"ic10", 1024\)/);
+  assert.doesNotMatch(iconScriptSource, /iconutil|subprocess/);
+
+  assert.equal(macIcon.subarray(0, 4).toString("ascii"), "icns");
+  assert.equal(macIcon.readUInt32BE(4), macIcon.length);
+  const iconTypes = [];
+  for (let offset = 8; offset < macIcon.length; ) {
+    assert.ok(offset + 8 <= macIcon.length, "ICNS entry header must fit");
+    const type = macIcon.subarray(offset, offset + 4).toString("ascii");
+    const length = macIcon.readUInt32BE(offset + 4);
+    assert.ok(length > 8, `${type} must carry a PNG payload`);
+    assert.ok(offset + length <= macIcon.length, `${type} must stay in bounds`);
+    assert.deepEqual([...macIcon.subarray(offset + 8, offset + 16)], [
+      137, 80, 78, 71, 13, 10, 26, 10,
+    ]);
+    iconTypes.push(type);
+    offset += length;
+  }
+  assert.ok(iconTypes.includes("icp4"));
+  assert.ok(iconTypes.includes("ic10"));
 });
 
 test("development launcher resolves Electron before platform-specific setup", () => {

@@ -1,4 +1,4 @@
 provider: github
-owner: vastsa
+owner: wxl206
 repo: PI-Desktop
 updaterCacheDirName: '@pi-desktopdesktop-updater'

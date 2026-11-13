@@ -174,7 +174,7 @@ Each ADR includes:
 | 0122 | Reserve native width while the work panel is visible | Superseded by 0151 |
 | 0123 | Use native taskbar minimize for Windows/Linux window controls | Accepted |
 | 0124 | Bind Temporary Sessions to Their Own Scratch Workspace | Accepted |
-| 0125 | Renderer Ships Derived Brand Marks and Minified Output | Accepted |
+| 0125 | Renderer Ships Derived Brand Marks and Minified Output | Accepted (brand paths amended by D686) |
 | 0126 | Agent Capability Pages Are One Workbench That Can Author | Accepted (`maxTurns` clause withdrawn by 0253) |
 | 0127 | Transcript Layout Index and Identity-Based Truncation | Accepted |
 | 0128 | Share one bounded budget for transient provider failures | Accepted |
@@ -200,7 +200,7 @@ Each ADR includes:
 | 0149 | Calm transcript running-status motion | Accepted |
 | 0150 | Inline SVG empty-home agent mark | Superseded by 0152 |
 | 0151 | Keep the work panel inside the fixed application window | Accepted |
-| 0152 | Eight-frame empty-home mascot GIF | Accepted |
+| 0152 | Eight-frame empty-home mascot GIF | Superseded by D686 |
 | 0153 | Checkpoint the streaming reply beside the transcript | Accepted |
 | 0154 | Reveal the New Task empty destination before host IO | Accepted |
 | 0155 | Add Zhipu / Z.AI Named Endpoint Presets | Accepted |
