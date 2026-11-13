@@ -18,6 +18,7 @@ export type SettingsTabId =
   | "voice"
   | "behavior"
   | "agent"
+  | "iterate"
   | "instructions"
   | "skills"
   | "mcp"
@@ -226,6 +227,18 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
       "settings.importSourceCodex",
       "settings.importSourcePi",
       "settings.importSourceCcSwitch",
+    ],
+  },
+  {
+    id: "iterate",
+    labelKey: "settings.iterateTitle",
+    titleKey: "settings.iterateTitle",
+    subtitleKey: "settings.iterateSubtitle",
+    group: "agent",
+    keywordKeys: [
+      "settings.iterateTitle", "settings.iterateBalance", "settings.iterateLogin",
+      "settings.iterateGroup", "settings.iterateModels", "settings.iterateRedeem",
+      "settings.iteratePurchase", "settings.iterateConnect",
     ],
   },
   {

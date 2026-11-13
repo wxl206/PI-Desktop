@@ -24,6 +24,7 @@ import { registerJevIpc } from "./jev-ipc";
 import { registerModesIpc } from "./modes-ipc";
 import type { ModeServices } from "../runtime/mode-services";
 import { registerProviderIpc } from "./provider-ipc";
+import { registerIterateIpc } from "./iterate-ipc";
 import { registerScheduledIpc } from "./scheduled-ipc";
 import { registerSessionIpc } from "./session-ipc";
 import { registerSettingsIpc } from "./settings-ipc";
@@ -344,6 +345,13 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     bindingForModel,
     onProviderInvalidated: (providerId) => liveCallService?.invalidateProvider(providerId),
   });
+  if (dependencies.iterateAccount) {
+    registerIterateIpc({
+      ...dependencies.iterateAccount,
+      registrar,
+      getMainWindow,
+    });
+  }
   registerJevIpc({ registrar, logger });
   registerModesIpc({ registrar, catalog: dependencies.modeServices.catalog, runs: dependencies.modeServices.runs });
   registerComputerIpc({ registrar, getHost, publishGrant: publishComputerGrant });

@@ -1,6 +1,7 @@
 mod background_jobs;
 mod computer_rpc;
 mod config_sync_rpc;
+mod iterate_account;
 mod file_batches;
 mod gen_ui;
 mod modes_rpc;
@@ -1973,6 +1974,18 @@ async fn handle_request(
         return config_sync_rpc::handle(state, method, params, tx)
             .await
             .map_err(config_sync_rpc_err);
+    }
+
+    if method.starts_with("iterateAccount.") {
+        let st = state.lock().await;
+        if !st.handshook {
+            return Err(rpc_err(1001, "handshake required", "UNAUTHORIZED"));
+        }
+        if st.shutting_down {
+            return Err(rpc_err(1001, "host is shutting down", "HOST_SHUTTING_DOWN"));
+        }
+        drop(st);
+        return iterate_account::handle(state, method, params).await;
     }
 
     if method.starts_with("backgroundJobs.") {

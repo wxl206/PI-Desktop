@@ -1,0 +1,133 @@
+import { app, BrowserWindow, dialog, session, type Session } from "electron";
+import type { AccountClient } from "./client";
+import { AccountError, ITERATE_ORIGIN, ITERATE_SHOP } from "./contract";
+
+export type AccountWindowLabels = {
+  login: string; purchase: string; paymentOrigin: string; open: string; cancel: string;
+};
+
+/** These windows are never registered with BrowserHost, PluginViewHost or CDP tools. */
+export class AccountWindows {
+  readonly website: Session;
+  private readonly purchaseSession: Session;
+  private readonly owned = new Set<BrowserWindow>();
+  private loginWindow: BrowserWindow | null = null;
+  private pending: Promise<void> | null = null;
+  private finish: ((error?: AccountError) => void) | null = null;
+  private accepting = false;
+  private readonly paymentOrigins = new Set(["https://catfk.com"]);
+  private disposed = false;
+
+  constructor(private readonly parent: () => BrowserWindow | null, private readonly labels: () => AccountWindowLabels) {
+    this.website = session.fromPartition("persist:iterate-account-v1", { cache: false });
+    this.purchaseSession = session.fromPartition("iterate-purchase-v1", { cache: false });
+    for (const isolated of [this.website, this.purchaseSession]) {
+      isolated.setPermissionRequestHandler((_web, _permission, callback) => callback(false));
+      isolated.setPermissionCheckHandler(() => false);
+      isolated.on("will-download", this.preventDownload);
+    }
+  }
+  private readonly preventDownload = (event: Electron.Event) => event.preventDefault();
+
+  private create(title: string, isolated: Session) {
+    if (this.disposed) throw new AccountError("CANCELLED");
+    // Chromium's global debugging endpoint can enumerate windows outside BrowserHost.
+    if (app.commandLine.hasSwitch("remote-debugging-port") || app.commandLine.hasSwitch("remote-debugging-pipe")) throw new AccountError("DEBUG_ACTIVE");
+    const window = new BrowserWindow({ parent: this.parent() ?? undefined, width: 1000, height: 800,
+      minWidth: 640, minHeight: 600, title, autoHideMenuBar: true,
+      webPreferences: { session: isolated, sandbox: true, contextIsolation: true, nodeIntegration: false,
+        webSecurity: true, devTools: false, webviewTag: false, navigateOnDragDrop: false } });
+    this.owned.add(window);
+    window.webContents.on("will-attach-webview", (event) => event.preventDefault());
+    window.on("closed", () => this.owned.delete(window));
+    return window;
+  }
+
+  login(client: AccountClient, onAccepted: () => Promise<void>): Promise<void> {
+    if (this.pending) { this.loginWindow?.focus(); return this.pending; }
+    const window = this.create(this.labels().login, this.website);
+    this.loginWindow = window; this.accepting = false;
+    this.pending = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => this.finish?.(new AccountError("CANCELLED")), 10 * 60 * 1000);
+      this.finish = (error) => {
+        clearTimeout(timer); this.finish = null;
+        this.website.webRequest.onBeforeSendHeaders(null);
+        this.loginWindow = null;
+        if (!window.isDestroyed()) window.destroy();
+        if (error) { client.clear(); reject(error); } else resolve();
+      };
+      this.website.webRequest.onBeforeSendHeaders({ urls: [`${ITERATE_ORIGIN}/api/*`] }, (details, callback) => {
+        const authorization = Object.entries(details.requestHeaders).find(([name]) => name.toLowerCase() === "authorization")?.[1];
+        const eligible = this.loginWindow === window && details.webContentsId === window.webContents.id && new URL(details.url).origin === ITERATE_ORIGIN;
+        callback({ requestHeaders: details.requestHeaders });
+        if (!eligible || this.accepting || typeof authorization !== "string" || !authorization.startsWith("Bearer ")) return;
+        this.accepting = true;
+        void client.accept(authorization.slice(7)).then(async () => {
+          if (this.loginWindow !== window) throw new AccountError("CANCELLED");
+          await onAccepted();
+          if (this.loginWindow === window) this.finish?.();
+        }).catch((error: unknown) => {
+          if (this.loginWindow !== window) return;
+          if (error instanceof AccountError && error.code === "STORAGE") this.finish?.(error);
+          else this.accepting = false;
+        });
+      });
+      const restrict = (event: Electron.Event, url: string) => { if (new URL(url).origin !== ITERATE_ORIGIN) event.preventDefault(); };
+      window.webContents.on("will-navigate", restrict);
+      window.webContents.on("will-redirect", restrict);
+      window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+      window.on("closed", () => { if (this.loginWindow === window) this.finish?.(new AccountError("CANCELLED")); });
+      void window.loadURL(`${ITERATE_ORIGIN}/console`).catch(() => this.finish?.(new AccountError("NETWORK")));
+    }).finally(() => { this.pending = null; });
+    return this.pending;
+  }
+
+  async openConsole() {
+    const window = this.create(this.labels().login, this.website);
+    window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    const restrict = (event: Electron.Event, url: string) => { if (new URL(url).origin !== ITERATE_ORIGIN) event.preventDefault(); };
+    window.webContents.on("will-navigate", restrict); window.webContents.on("will-redirect", restrict);
+    try { await window.loadURL(`${ITERATE_ORIGIN}/console`); }
+    catch { window.destroy(); throw new AccountError("NETWORK"); }
+    return { opened: true };
+  }
+
+  async purchase(url = ITERATE_SHOP) {
+    if (new URL(url).protocol !== "https:") throw new AccountError("PAYMENT_DOMAIN");
+    const window = this.create(this.labels().purchase, this.purchaseSession);
+    const openApproved = async (target: string) => {
+      const parsed = new URL(target); if (parsed.protocol !== "https:") return;
+      if (!this.paymentOrigins.has(parsed.origin)) {
+        const labels = this.labels();
+        const choice = await dialog.showMessageBox(window, { type: "question", title: labels.purchase,
+          message: labels.paymentOrigin, detail: parsed.origin, buttons: [labels.cancel, labels.open], defaultId: 0, cancelId: 0 });
+        if (choice.response !== 1 || window.isDestroyed() || this.disposed) return;
+        this.paymentOrigins.add(parsed.origin);
+      }
+      await window.loadURL(target).catch(() => {});
+    };
+    const restrict = (event: Electron.Event, target: string) => {
+      const parsed = new URL(target);
+      if (parsed.protocol === "https:" && this.paymentOrigins.has(parsed.origin)) return;
+      event.preventDefault(); void openApproved(target);
+    };
+    window.webContents.on("will-navigate", restrict); window.webContents.on("will-redirect", restrict);
+    window.webContents.setWindowOpenHandler(({ url: target }) => { void openApproved(target); return { action: "deny" }; });
+    try { await window.loadURL(url); }
+    catch { window.destroy(); throw new AccountError("NETWORK"); }
+    return { opened: true };
+  }
+
+  async clear() {
+    this.finish?.(new AccountError("CANCELLED"));
+    for (const window of this.owned) if (!window.isDestroyed()) window.destroy();
+    await this.website.clearStorageData(); await this.website.clearCache();
+    await this.purchaseSession.clearStorageData(); await this.purchaseSession.clearCache();
+    this.paymentOrigins.clear(); this.paymentOrigins.add("https://catfk.com");
+  }
+  dispose() {
+    this.disposed = true; this.finish?.(new AccountError("CANCELLED"));
+    for (const window of this.owned) if (!window.isDestroyed()) window.destroy();
+    for (const isolated of [this.website, this.purchaseSession]) isolated.removeListener("will-download", this.preventDownload);
+  }
+}

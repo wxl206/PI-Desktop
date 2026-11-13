@@ -34,6 +34,7 @@ import {
   IconCloudDown,
   IconMic,
   IconWorkflow,
+  IconCreditCard,
 } from "../../components/icons";
 import { Badge, Button, cx } from "../../components/ui";
 import { ModelConfigPage } from "../../components/settings/ModelConfigPage";
@@ -53,6 +54,7 @@ import { AppearanceSettings } from "./pages/AppearanceSettings";
 import { ConversationSettings } from "./pages/ConversationSettings";
 import { SystemSettings } from "./pages/SystemSettings";
 import { ModesSettingsPage } from "../modes/ModesSettingsPage";
+import { IterateAccountPage } from "./iterate/IterateAccountPage";
 
 type SettingsTab = ReturnType<typeof useAppStore.getState>["settingsTab"];
 
@@ -228,6 +230,7 @@ export function SettingsPage() {
       voice: <IconMic size={14} />,
       behavior: <IconSliders size={14} />,
       agent: <IconBot size={14} />,
+      iterate: <IconCreditCard size={14} />,
       instructions: <IconFileText size={14} />,
       skills: <IconBookOpen size={14} />,
       mcp: <IconServer size={14} />,
@@ -466,6 +469,7 @@ export function SettingsPage() {
           )}
 
           {tab === "agent" && <ModelConfigPage />}
+          {tab === "iterate" && <IterateAccountPage />}
 
           {tab === "skills" && <AgentSkillsPage />}
 

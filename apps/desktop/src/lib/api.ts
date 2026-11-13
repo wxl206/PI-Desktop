@@ -164,6 +164,8 @@ import type {
   TrustedExtensionUiPromptResponse,
   SessionTodoSnapshot,
   StorageInfo,
+  IterateModel,
+  IterateOverview,
 } from "@pi-desktop/shared";
 import {
   defaultCommandShellForPlatform,
@@ -741,6 +743,16 @@ function normalizePlansChangedEvent(value: unknown): PlanningStateEvent {
 }
 
 export const api = {
+  iterateOverview: () => invoke<IterateOverview>(IPC.invoke.iterateOverview),
+  iterateLogin: () => invoke<null>(IPC.invoke.iterateLogin),
+  iterateLogout: () => invoke<{ loggedOut: true }>(IPC.invoke.iterateLogout),
+  iterateDiscover: (group: string) => invoke<{ models: IterateModel[] }>(IPC.invoke.iterateDiscover, group),
+  iterateConnect: (group: string, modelId: string) => invoke<{ providerId: string; modelId: string }>(IPC.invoke.iterateConnect, group, modelId),
+  iterateCopyKey: (group: string) => invoke<{ copied: true }>(IPC.invoke.iterateCopyKey, group),
+  iteratePurchase: () => invoke<{ opened: true }>(IPC.invoke.iteratePurchase),
+  iterateConsole: () => invoke<{ opened: true }>(IPC.invoke.iterateConsole),
+  iterateRedeem: (code: string) => invoke<{ redeemed: true }>(IPC.invoke.iterateRedeem, code),
+  iterateAcknowledgeRedemption: () => invoke<{ acknowledged: true }>(IPC.invoke.iterateAcknowledgeRedemption),
   getVersion: () => invoke<AppVersionInfo>(IPC.invoke.appGetVersion),
   health: () => invoke<HostHealth>(IPC.invoke.appHealth),
   getOnboarding: () => invoke<OnboardingState>(IPC.invoke.appGetOnboarding),

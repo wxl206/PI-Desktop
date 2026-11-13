@@ -1,5 +1,6 @@
 import {
   app,
+  clipboard,
   BrowserWindow,
   ipcMain,
   powerMonitor,
@@ -57,6 +58,10 @@ import { hasSingleInstanceLock, isDevelopmentBuild } from "./installation";
 import { getStorageBootstrap } from "./storage/bootstrap";
 import { createPlanUiProbe } from "./plan-ui-probe";
 import { registerIpcHandlers } from "./ipc/register";
+import { AccountClient } from "./iterate-account/client";
+import { JournalStore } from "./iterate-account/journal";
+import { AccountService } from "./iterate-account/service";
+import { AccountWindows } from "./iterate-account/windows";
 import { createVoiceService } from "./voice-service";
 import { MicrophoneLeaseRegistry } from "./live-voice/microphone-lease";
 import { createLiveCallService } from "./live-voice/runtime";
@@ -118,6 +123,7 @@ const getMainWindow = () => mainState.mainWindow;
 const getSidecar = () => mainState.sidecar;
 
 let applicationLifecycle: ReturnType<typeof createApplicationLifecycle> | null = null;
+let iterateWindows: AccountWindows | null = null;
 let launcherRuntime: ReturnType<typeof createLauncher> | null = null;
 let closeBehaviorRuntime: ReturnType<typeof createCloseBehaviorRuntime> | null = null;
 const showPluginLauncherForLifecycle = (): Promise<void> => {
@@ -936,6 +942,18 @@ const localApps: LocalAppCatalog = {
 };
 
 function registerIpc() {
+  const iterateClient = new AccountClient((url, init) => {
+    const isolated = iterateWindows?.website;
+    if (!isolated) throw new Error("iterate session unavailable");
+    return isolated.fetch(url, init);
+  });
+  const iterateStore = new JournalStore(getHost);
+  const iterateService = new AccountService(iterateClient, iterateStore);
+  iterateWindows = new AccountWindows(getMainWindow, () => ({
+    login: "迭代账户", purchase: "充值迭代余额", paymentOrigin: "需要打开支付页面",
+    open: "打开", cancel: "取消",
+  }));
+  const activeWindows = iterateWindows;
   return registerIpcHandlers({
     modeServices,
     restartForStorage: () => {
@@ -1057,6 +1075,12 @@ function registerIpc() {
     voiceService,
     liveCallService,
     liveVoiceWidget,
+    iterateAccount: {
+      service: iterateService,
+      windows: activeWindows,
+      client: iterateClient,
+      writeClipboard: (value: string) => clipboard.writeText(value),
+    },
   });
 }
 
@@ -1103,6 +1127,8 @@ void app.whenReady().then(() => {
 
 // The widget is chrome for a call this window owns; it must never outlive the app.
 app.once("will-quit", () => liveVoiceWidget.close());
+// Isolated account/purchase windows must not outlive the app either.
+app.once("will-quit", () => iterateWindows?.dispose());
 
 registerApplicationStartup({
   hasSingleInstanceLock,

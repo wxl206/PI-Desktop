@@ -503,6 +503,18 @@
   gap: 14px;
 }
 
+.iterate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 16px;
+}
+.iterate-grid strong { display: block; margin-top: 5px; font-size: var(--text-lg); }
+.iterate-actions, .iterate-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.iterate-form { padding: 12px 16px; }
+.iterate-form .field-input { flex: 1 1 220px; }
+.iterate-form .settings-menu-select-anchor { flex: 1 1 220px; }
+
 /* D297: a panel is one soft tile. No ring in either theme; tone does the work. */
 .settings-panel {
   display: flex;

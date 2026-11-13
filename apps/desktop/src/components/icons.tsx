@@ -16,6 +16,7 @@ import {
   Camera,
   Check,
   CheckCheck,
+  CreditCard,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -256,6 +257,7 @@ export const IconStar = icon(Star);
 /* Toast status glyphs (see ToastHost) */
 export const IconCircleCheck = icon(CircleCheck);
 export const IconCircleAlert = icon(CircleAlert);
+export const IconCreditCard = icon(CreditCard);
 export const IconTriangleAlert = icon(TriangleAlert);
 /* Password field reveal toggle (see PasswordInput). */
 export const IconEye = icon(Eye);
