@@ -163,7 +163,7 @@ export function IterateAccountPage() {
         </div>
         <div className="settings-panel-actions iterate-actions">
           <Button disabled={Boolean(busy)} onClick={() => void load()}>{t("settings.iterateRefresh")}</Button>
-          <Button disabled={Boolean(busy)} onClick={() => setPurchaseOpen(true)}>{t("settings.iteratePurchase")}</Button>
+          <Button variant="primary" disabled={Boolean(busy)} onClick={() => setPurchaseOpen(true)}>{t("settings.iteratePurchase")}</Button>
           <Button disabled={Boolean(busy)} onClick={() => action("console", () => api.iterateConsole().then(() => {}))}>{t("settings.iterateConsole")}</Button>
           <Button variant="ghost" disabled={Boolean(busy) || tasksRunning} onClick={() => action("logout", async () => {
             await api.iterateLogout();

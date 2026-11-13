@@ -320,6 +320,7 @@ ADR 记录那些不应被静默改变的架构选择。中文入口与英文索�
 | 0340 | [插件可访问任意会话（新增 .all 权限）](/adr/0340-plugin-session-all-scope) | 已接受（修订 ADR 0200、ADR 0323；D680） |
 | 0344 | [电脑操作默认授权整个桌面，“停止”就是边界](/adr/0344-computer-use-whole-desktop-grant) | 已接受（D682；修订 ADR 0342 第 4、6 条） |
 | 0347 | [由 Main 管理的第一方「迭代」网关账户接入](/adr/0347-main-owned-iterate-account-integration) | 已接受实施 |
+| 0348 | [「迭代」分支的产品级服务商目录范围](/adr/0348-product-scoped-provider-catalog) | 已接受实施 |
 
 ## 什么时候看 ADR
 

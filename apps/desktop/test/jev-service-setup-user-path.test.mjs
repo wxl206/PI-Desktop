@@ -1,11 +1,13 @@
 /**
- * Isolated Electron user path for adding Jev as a service (D625).
+ * Isolated Electron user path for the Jev service flow (D625).
  *
- * Jev is offered where a service is added, not where an existing row is
- * edited, and adding it is one action with two steps: check the TypeSafe key,
- * then store it and turn the classifier on. The check comes first and nothing
- * is written when it fails — otherwise a saved key would be a key the Agent
- * cannot spend, and "enabled" would mean nothing.
+ * The product scope keeps third-party classifiers out of the add path, so the
+ * chooser no longer lists Jev; the scope assertions pin that. The dialog's own
+ * contract still matters — it is what runs when the scope re-enables the
+ * entry — and adding Jev is one action with two steps: check the TypeSafe
+ * key, then store it and turn the classifier on. The check comes first and
+ * nothing is written when it fails — otherwise a saved key would be a key the
+ * Agent cannot spend, and "enabled" would mean nothing.
  */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -157,18 +159,17 @@ function JevSurface({ initiallyOpen = false }) {
 }
 
 window.jevServiceSetupProbe = async () => {
-  // 1) The add path offers Jev beside the API services.
+  // 1) The add path stays inside the product scope: no classifier tile, no
+  // custom endpoint, the scoped preset only.
   mount(React.createElement(ServiceChooser, {
     showClassifiers: true,
     onPickService: (id) => { pickedService = id; },
   }));
   await settle();
   const offersClassifiers = document.body.innerText.includes("Classifiers");
-  const tile = jevTile();
-  if (!tile) throw new Error("the add path must offer Jev");
-  flushSync(() => tile.click());
-  await settle();
-  const pickedJev = pickedService === "jev";
+  const jevOffered = Boolean(jevTile());
+  const deepseekOffered = document.body.innerText.includes("DeepSeek");
+  const customOffered = document.body.innerText.includes("Custom endpoint");
 
   // 2) Editing an existing row cannot turn it into a classifier.
   mount(React.createElement(ServiceChooser, {
@@ -268,7 +269,9 @@ window.jevServiceSetupProbe = async () => {
 
   return {
     offersClassifiers,
-    pickedJev,
+    jevOffered,
+    deepseekOffered,
+    customOffered,
     hiddenWhenEditing,
     hiddenGroup,
     privacyNoticeShown,
@@ -373,8 +376,10 @@ app.whenReady().then(async () => {
     assert(line, output.slice(-6000));
     const result = JSON.parse(line.slice("JEV_SERVICE_PROBE ".length));
     assert.deepEqual(result, {
-      offersClassifiers: true,
-      pickedJev: true,
+      offersClassifiers: false,
+      jevOffered: false,
+      deepseekOffered: true,
+      customOffered: false,
       hiddenWhenEditing: true,
       hiddenGroup: true,
       privacyNoticeShown: true,

@@ -10,6 +10,8 @@
  * display, composer input and run behavior — is split rather than reordered,
  * because no card order makes two subjects one page.
  */
+import { PRODUCT_SCOPE } from "./product-scope.ts";
+
 
 export type SettingsTabId =
   | "appearance"
@@ -79,7 +81,7 @@ export type SettingsNavEntry = {
   experimentalBadgeKey?: string;
 };
 
-export const SETTINGS_NAV: SettingsNavEntry[] = [
+const SETTINGS_NAV_SOURCE: SettingsNavEntry[] = [
   {
     id: "appearance",
     labelKey: "settings.nav.appearance",
@@ -434,6 +436,35 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
     ],
   },
 ];
+
+/**
+ * Keyword keys that belong to add-connection entry points the product scope
+ * hides. The tab stays; search must not surface a feature the page no longer
+ * offers, so those rows drop out of the index with the entry points.
+ */
+const SCOPED_OUT_KEYWORD_KEYS = new Set<string>([
+  ...(PRODUCT_SCOPE.oauthEnabled
+    ? []
+    : ["settings.vendorAccounts", "settings.vendorSubscription"]),
+  ...(PRODUCT_SCOPE.providerImportEnabled
+    ? []
+    : [
+        "settings.importTitle",
+        "settings.importModelsScanDesc",
+        "settings.importModelsTitle",
+        "settings.importSourceClaudeCode",
+        "settings.importSourceOpenCode",
+        "settings.importSourceCodex",
+        "settings.importSourcePi",
+        "settings.importSourceCcSwitch",
+      ]),
+]);
+
+export const SETTINGS_NAV: SettingsNavEntry[] = SETTINGS_NAV_SOURCE.map((entry) =>
+  entry.keywordKeys?.some((key) => SCOPED_OUT_KEYWORD_KEYS.has(key))
+    ? { ...entry, keywordKeys: entry.keywordKeys.filter((key) => !SCOPED_OUT_KEYWORD_KEYS.has(key)) }
+    : entry,
+);
 
 /**
  * Resolve a destination id that may predate the D684 split: an id the index

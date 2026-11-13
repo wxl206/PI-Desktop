@@ -159,7 +159,7 @@ window.pluginProviderCatalogProbe = async () => {
   // must reach the ordinary key form instead of the plugin-only empty state.
   mount(React.createElement(BuiltInServiceSurface));
   const builtInTile = await waitFor(
-    () => document.querySelector('[data-service-id="openai"]'),
+    () => document.querySelector('[data-service-id="deepseek"]'),
     "the built-in service tile was not shown",
   );
   flushSync(() => builtInTile.click());

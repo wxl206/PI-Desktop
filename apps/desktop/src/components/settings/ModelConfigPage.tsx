@@ -43,6 +43,7 @@ import { ImportToggleButton } from "../../features/settings/import-workbench";
 import { JevSettingsCard } from "./JevSettingsCard";
 import { JEV_SERVICE } from "./service-catalog";
 import { isPluginCatalogSetupForProvider } from "./provider-setup-mode";
+import { PRODUCT_SCOPE } from "../../lib/product-scope.ts";
 
 type CatalogStatus = {
   loaded: boolean;
@@ -424,12 +425,14 @@ export function ModelConfigPage() {
             ) : null}
           </div>
           <div className="provider-section-head-actions">
-            <ImportToggleButton
-              open={importOpen}
-              controls="model-config-import-panel"
-              label={t("settings.importTitle")}
-              onClick={() => setImportOpen((current) => !current)}
-            />
+            {PRODUCT_SCOPE.providerImportEnabled ? (
+              <ImportToggleButton
+                open={importOpen}
+                controls="model-config-import-panel"
+                label={t("settings.importTitle")}
+                onClick={() => setImportOpen((current) => !current)}
+              />
+            ) : null}
             <Button
               variant="primary"
               className="model-provider-add"
@@ -443,13 +446,15 @@ export function ModelConfigPage() {
           </div>
         </div>
 
-        <div
-          id="model-config-import-panel"
-          className="import-inline-workbench"
-          hidden={!importOpen}
-        >
-          <ModelConfigImportPanel />
-        </div>
+        {PRODUCT_SCOPE.providerImportEnabled ? (
+          <div
+            id="model-config-import-panel"
+            className="import-inline-workbench"
+            hidden={!importOpen}
+          >
+            <ModelConfigImportPanel />
+          </div>
+        ) : null}
 
         <div className="settings-panel model-provider-panel">
           {providers.length === 0 ? (
@@ -537,14 +542,16 @@ export function ModelConfigPage() {
         </Button>
       </div>
 
-      <JevSettingsCard
-        settings={settings}
-        onConfigure={() => {
-          setJevSetup(true);
-          setSetupFor("");
-        }}
-        statusRevision={jevStatusRevision}
-      />
+      {PRODUCT_SCOPE.jevEnabled ? (
+        <JevSettingsCard
+          settings={settings}
+          onConfigure={() => {
+            setJevSetup(true);
+            setSetupFor("");
+          }}
+          statusRevision={jevStatusRevision}
+        />
+      ) : null}
 
       {imageGenerationCandidates.length > 0 ? (
         <section className="settings-card-block">
@@ -589,15 +596,17 @@ export function ModelConfigPage() {
             // The card is already mounted: tell it the key it read has changed.
             setJevStatusRevision((revision) => revision + 1);
           }}
-          vendors={vendors}
-          onPickSubscription={(vendor) => {
-            setSetupFor(null);
-            setCopyDraft(null);
-            setPluginCatalogSetup(null);
-            // Started here, not in the dialog: a click happens once, where
-            // StrictMode would run a mount effect twice and open two browsers.
-            startLogin(vendor);
-          }}
+          vendors={PRODUCT_SCOPE.oauthEnabled ? vendors : []}
+          onPickSubscription={PRODUCT_SCOPE.oauthEnabled
+            ? (vendor) => {
+                setSetupFor(null);
+                setCopyDraft(null);
+                setPluginCatalogSetup(null);
+                // Started here, not in the dialog: a click happens once, where
+                // StrictMode would run a mount effect twice and open two browsers.
+                startLogin(vendor);
+              }
+            : undefined}
           onPickPluginProvider={(providerId, pluginName) => {
             setPluginCatalogSetup({ providerId, pluginName });
             setCopyDraft(null);

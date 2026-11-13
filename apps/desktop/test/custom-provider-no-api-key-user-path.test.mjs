@@ -120,17 +120,31 @@ window.customProviderNoApiKeyProbe = async () => {
     await waitFor(() => updateInput && updatedProvider, "the provider edit was not saved");
     return structuredClone(updateInput);
   };
+  // Product scope first: the add chooser no longer offers the custom
+  // endpoint, and the scoped preset is the only named tile.
+  mount(React.createElement(ProviderSetupDialog, {
+    key: "chooser-scope",
+    provider: null,
+    onClose: () => mount(null),
+    onSaved: () => {},
+  }));
+  await waitFor(
+    () => document.querySelector('[data-service-id="deepseek"]'),
+    "the scoped preset tile was not shown",
+  );
+  check(!document.querySelector('[data-service-id="custom"]'),
+    "the custom endpoint tile must stay out of the scoped add flow");
+  mount(null);
+
+  // The custom form contract still matters when the scope re-enables the
+  // entry, so this dialog opens straight on the custom service.
   mount(React.createElement(ProviderSetupDialog, {
     key: "new-provider",
     provider: null,
+    initialService: "custom",
     onClose: () => mount(null),
     onSaved: () => { savedCallback = true; },
   }));
-  const customTile = await waitFor(
-    () => document.querySelector('[data-service-id="custom"]'),
-    "the custom endpoint service was not offered",
-  );
-  flushSync(() => customTile.click());
   check(!document.querySelector('[role="switch"][aria-label="No API key required"]'),
     "the obsolete no-key switch is still present");
   check(keyField() && !keyField().disabled, "the optional API-key input is not enabled");

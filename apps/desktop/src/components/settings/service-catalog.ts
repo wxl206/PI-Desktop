@@ -12,6 +12,7 @@ import {
   type ProviderPublic,
   type NamedEndpointPreset,
 } from "@pi-desktop/shared";
+import { isProductPresetAllowed } from "../../lib/product-scope.ts";
 
 /**
  * Jev is offered where a service is added, not where a provider is edited: it
@@ -61,9 +62,15 @@ function presetOption(preset: NamedEndpointPreset, translate: Translate): Servic
   };
 }
 
-/** Every named endpoint preset, in the order the shared table lists them. */
+/**
+ * The named endpoint presets this product offers, in the shared table's
+ * order. The scope allowlist decides what a new row can start from; legacy
+ * rows outside it stay editable through the full shared table.
+ */
 export function namedServiceOptions(translate: Translate): ServiceOption[] {
-  return NAMED_ENDPOINT_PRESETS.map((preset) => presetOption(preset, translate));
+  return NAMED_ENDPOINT_PRESETS
+    .filter((preset) => isProductPresetAllowed(preset.id))
+    .map((preset) => presetOption(preset, translate));
 }
 
 /** Any OpenAI- or Anthropic-compatible address the presets do not cover. */

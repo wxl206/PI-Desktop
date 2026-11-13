@@ -545,6 +545,14 @@ a usage tab.
     override is folded into it when the map is read (D438, D439)
 
 ### Model configuration (`agent` tab)
+- **Fork product scope (ADR 0348):** this fork ships the Iterate gateway as
+  the first-party account flow and DeepSeek as the only direct preset. On this
+  page the product scope hides the Jev card, the provider import panel, and
+  every subscription/OAuth sign-in entry; the Add Service chooser lists only
+  the scoped preset, with no custom-endpoint tile and no custom fallback on an
+  empty search. Connections the user already configured — including legacy
+  third-party rows — keep working, stay in the service list, and remain
+  editable through the full shared preset table.
 - The model configuration page groups its sections in this order: **AI
   services** (including model-catalog status and refresh), **Jev**, then the
   image-generation model selector. The sections use one consistent vertical

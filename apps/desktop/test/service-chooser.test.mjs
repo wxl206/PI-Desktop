@@ -51,8 +51,12 @@ test("a new service starts on a searchable chooser, not a closed menu (D625)", (
 });
 
 test("subscriptions and API services share the chooser, custom endpoint first", () => {
-  assert.match(chooserSource, /\[customServiceOption\(t\), \.\.\.namedServiceOptions\(t\)\]/);
-  // The custom endpoint is the group's first tile, ahead of every named host.
+  assert.match(
+    chooserSource,
+    /\[\s*\.\.\.\(PRODUCT_SCOPE\.customEndpointEnabled \? \[customServiceOption\(t\)\] : \[\]\),\s*\.\.\.namedServiceOptions\(t\),?\s*\]/,
+  );
+  // The custom endpoint is the group's first tile, ahead of every named host,
+  // whenever the product scope offers it at all.
   const customAt = chooserSource.indexOf("customServiceOption(t)");
   const namedAt = chooserSource.indexOf("namedServiceOptions(t)");
   assert.ok(customAt > 0 && customAt < namedAt, "the custom endpoint leads the API-key group");
@@ -73,9 +77,23 @@ test("subscriptions and API services share the chooser, custom endpoint first", 
   // Jev is a classifier, not a row anyone edits: it is offered on the add path
   // only, and it renders its own view instead of the connection form.
   assert.match(chooserSource, /settings\.chooserClassifiers/);
-  assert.match(chooserSource, /showClassifiers \? \[jevServiceOption\(t\)\] : \[\]/);
+  assert.match(chooserSource, /PRODUCT_SCOPE\.jevEnabled && showClassifiers \? \[jevServiceOption\(t\)\] : \[\]/);
   assert.match(setupSource, /showClassifiers=\{!editing\}/);
   assert.match(setupSource, /const jevService = service === JEV_SERVICE/);
+});
+
+test("the product scope gates every third-party add path in the chooser", () => {
+  // One flag per entry point: subscriptions, custom base URLs and the Jev
+  // classifier. Turning a flag on restores the entry without new wiring.
+  assert.match(chooserSource, /PRODUCT_SCOPE\.oauthEnabled && onPickSubscription && vendors/);
+  assert.match(chooserSource, /PRODUCT_SCOPE\.customEndpointEnabled \? \[customServiceOption\(t\)\] : \[\]/);
+  assert.match(chooserSource, /PRODUCT_SCOPE\.jevEnabled && showClassifiers/);
+  // No matches must not dead-end into an entry the scope does not offer.
+  assert.match(chooserSource, /else if \(PRODUCT_SCOPE\.customEndpointEnabled\) pickService\(CUSTOM_SERVICE\)/);
+  assert.match(
+    chooserSource,
+    /\{PRODUCT_SCOPE\.customEndpointEnabled \? \(\s*<button[^>]*service-chooser-empty-action/s,
+  );
 });
 
 test("the chooser answers the keyboard and never dead-ends", () => {
@@ -86,7 +104,7 @@ test("the chooser answers the keyboard and never dead-ends", () => {
   assert.match(chooserSource, /ArrowDown/);
   assert.match(chooserSource, /ArrowUp/);
   assert.match(chooserSource, /searchRef\.current\?\.focus\(\)/);
-  // No match still offers the custom endpoint.
+  // No match still offers the custom endpoint when the scope enables it.
   assert.match(chooserSource, /settings\.noServiceMatches/);
   assert.match(chooserSource, /settings\.useCustomEndpoint/);
   assert.match(chooserSource, /pickService\(CUSTOM_SERVICE\)/);

@@ -23,6 +23,7 @@ import {
   namedServiceOptions,
   type PluginProviderServiceOption,
 } from "./service-catalog";
+import { PRODUCT_SCOPE } from "../../lib/product-scope.ts";
 
 export type ServiceChooserProps = {
   /** Vendors that sign in with an account; absent or empty hides the group. */
@@ -60,12 +61,15 @@ export function ServiceChooser({
   const gridRef = useRef<HTMLDivElement>(null);
 
   const serviceOptions = useMemo(
-    () => [customServiceOption(t), ...namedServiceOptions(t)],
+    () => [
+      ...(PRODUCT_SCOPE.customEndpointEnabled ? [customServiceOption(t)] : []),
+      ...namedServiceOptions(t),
+    ],
     [t],
   );
   const subscriptionOptions = useMemo<SubscriptionOption[]>(
     () =>
-      onPickSubscription && vendors
+      PRODUCT_SCOPE.oauthEnabled && onPickSubscription && vendors
         ? vendors.map((vendor) => ({
             vendor,
             haystack:
@@ -78,7 +82,7 @@ export function ServiceChooser({
   // Jev is offered where a service is added: an existing row cannot be turned
   // into a classifier, so this group stays out of that flow.
   const classifierOptions = useMemo(
-    () => (showClassifiers ? [jevServiceOption(t)] : []),
+    () => (PRODUCT_SCOPE.jevEnabled && showClassifiers ? [jevServiceOption(t)] : []),
     [showClassifiers, t],
   );
 
@@ -143,7 +147,7 @@ export function ServiceChooser({
     else if (visiblePluginProviders[0]) pickPluginProvider(visiblePluginProviders[0].id);
     else if (visibleClassifiers[0]) pickService(visibleClassifiers[0].id);
     else if (visibleSubscriptions[0]) pickSubscription(visibleSubscriptions[0].vendor);
-    else pickService(CUSTOM_SERVICE);
+    else if (PRODUCT_SCOPE.customEndpointEnabled) pickService(CUSTOM_SERVICE);
   };
 
   const tiles = () => [
@@ -217,14 +221,16 @@ export function ServiceChooser({
         {nothingMatches ? (
           <div className="service-chooser-empty">
             <span>{t("settings.noServiceMatches")}</span>
-            <button
-              type="button"
-              className="service-chooser-empty-action"
-              disabled={disabled}
-              onClick={() => pickService(CUSTOM_SERVICE)}
-            >
-              {t("settings.useCustomEndpoint")}
-            </button>
+            {PRODUCT_SCOPE.customEndpointEnabled ? (
+              <button
+                type="button"
+                className="service-chooser-empty-action"
+                disabled={disabled}
+                onClick={() => pickService(CUSTOM_SERVICE)}
+              >
+                {t("settings.useCustomEndpoint")}
+              </button>
+            ) : null}
           </div>
         ) : null}
 

@@ -413,3 +413,4 @@ Each ADR includes:
 | 0345 | [One settings destination owns one subject](0345-one-settings-destination-one-subject.md) | Accepted (D684; amends D143, D166, D678) |
 | 0346 | [`@agent` mentions route a turn to a named subagent](0346-composer-agent-mentions.md) | Accepted (issue #986; extends 0024 / 0062) |
 | 0347 | [Main-owned integration with the first-party Iterate gateway](0347-main-owned-iterate-account-integration.md) | Accepted for implementation |
+| 0348 | [Product-scoped provider catalog for the Iterate fork](0348-product-scoped-provider-catalog.md) | Accepted for implementation |
