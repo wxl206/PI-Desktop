@@ -6,8 +6,7 @@
   "description": "PI-Desktop Electron application",
   "homepage": "https://github.com/wxl206/PI-Desktop",
   "author": {
-    "name": "vastsa",
-    "email": "hhxk666@gmail.com"
+    "name": "wxl206"
   },
   "main": "./out/main/index.js",
   "type": "module",
