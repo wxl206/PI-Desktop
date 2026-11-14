@@ -1029,6 +1029,9 @@ export const zhCN = {
     iterateLowBalanceRaw: "「迭代」余额偏低：当前仅剩 {{amount}} {{unit}}",
     iterateLowBalanceRecharge: "去充值",
     iterateLowBalanceDismiss: "暂不提醒",
+    iterateQuickSignIn: "接入「迭代」账号",
+    iterateQuickBalance: "余额 {{amount}} {{unit}}",
+    iterateQuickRecharge: "充值",
     iterateError: {
       BUSY: "另一个账户操作仍在进行，请稍候。",
       LOGIN_REQUIRED: "登录已过期，请重新登录。",

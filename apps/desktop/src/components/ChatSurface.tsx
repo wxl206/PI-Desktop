@@ -12,6 +12,7 @@ import { TooltipButton } from "./ui";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { IterateWelcome } from "../features/settings/iterate/IterateWelcome";
 import { IterateLowBalanceBanner } from "../features/settings/iterate/IterateLowBalanceBanner";
+import { IterateQuickRecharge } from "../features/settings/iterate/IterateQuickRecharge";
 import { SessionPane } from "./SessionPane";
 import { ConversationWidthHandles } from "./ConversationWidthHandles";
 import { useAppStore } from "../stores/app-store";
@@ -198,6 +199,7 @@ export const ChatSurface = memo(function ChatSurface({
             </div>
           </div>
           <div className="home-composer-wrap">
+            {!isRemoteSession(activeSession) ? <IterateQuickRecharge /> : null}
             {!isRemoteSession(activeSession) ? <IterateLowBalanceBanner /> : null}
             <StableComposer variant="home" />
           </div>
@@ -213,6 +215,7 @@ export const ChatSurface = memo(function ChatSurface({
               />
             ))}
           </div>
+          {!isRemoteSession(activeSession) ? <IterateQuickRecharge /> : null}
           {!isRemoteSession(activeSession) ? <IterateLowBalanceBanner /> : null}
           <StableComposer variant="docked" />
         </>

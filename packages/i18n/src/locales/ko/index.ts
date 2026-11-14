@@ -1033,6 +1033,9 @@ export const ko = {
     iterateLowBalanceRaw: "Iterate 잔액이 부족합니다: {{amount}} {{unit}} 남았습니다",
     iterateLowBalanceRecharge: "충전하기",
     iterateLowBalanceDismiss: "나중에",
+    iterateQuickSignIn: "Iterate 계정 연결",
+    iterateQuickBalance: "잔액 {{amount}} {{unit}}",
+    iterateQuickRecharge: "충전",
     iterateError: {
       BUSY: "Another account operation is still running.",
       LOGIN_REQUIRED: "Sign in again to continue.",

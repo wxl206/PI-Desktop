@@ -1033,6 +1033,9 @@ export const tr = {
     iterateLowBalanceRaw: "Iterate bakiyesi azalıyor: {{amount}} {{unit}} kaldı",
     iterateLowBalanceRecharge: "Yükle",
     iterateLowBalanceDismiss: "Şimdi değil",
+    iterateQuickSignIn: "Iterate hesabını bağla",
+    iterateQuickBalance: "Bakiye {{amount}} {{unit}}",
+    iterateQuickRecharge: "Yükle",
     iterateError: {
       BUSY: "Another account operation is still running.",
       LOGIN_REQUIRED: "Sign in again to continue.",

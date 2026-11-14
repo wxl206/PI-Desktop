@@ -540,6 +540,17 @@
   color: var(--ds-text-muted);
 }
 .iterate-low-balance-dismiss:hover { color: var(--ds-text-primary); background: var(--ds-bg-hover); }
+.iterate-quick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto 8px;
+  max-width: 560px;
+  font-size: var(--text-sm);
+  color: var(--ds-text-secondary);
+}
+.iterate-quick-balance { color: var(--ds-text-secondary); }
 .iterate-usage { display: flex; flex-direction: column; gap: 12px; padding: 0 16px 16px; }
 .iterate-usage-section h4 { margin: 0 0 8px; font-size: var(--text-sm); color: var(--ds-text-secondary); }
 .iterate-usage-days { display: flex; flex-direction: column; gap: 6px; }

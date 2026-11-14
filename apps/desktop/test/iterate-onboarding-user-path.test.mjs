@@ -21,6 +21,23 @@ test("the chat home places the Iterate guide before the generic checklist", asyn
   assert.ok(generic > iterate, "the generic checklist must follow the Iterate guide");
 });
 
+test("a persistent recharge entry stays above the composer in every chat state", async () => {
+  const surface = await readFile(
+    new URL("../src/components/ChatSurface.tsx", import.meta.url),
+    "utf8",
+  );
+  const emptyState = surface.indexOf("home-composer-wrap");
+  const emptyPill = surface.indexOf("<IterateQuickRecharge />", emptyState);
+  const emptyBanner = surface.indexOf("<IterateLowBalanceBanner />", emptyState);
+  assert.ok(emptyPill > emptyState, "the chat home must mount the quick recharge pill");
+  assert.ok(emptyBanner > emptyPill, "the quick recharge pill must precede the low-balance reminder");
+  const docked = surface.indexOf("session-panes");
+  const dockedPill = surface.indexOf("<IterateQuickRecharge />", docked);
+  const dockedBanner = surface.indexOf("<IterateLowBalanceBanner />", docked);
+  assert.ok(dockedPill > docked, "mid-session chats must mount the quick recharge pill");
+  assert.ok(dockedBanner > dockedPill, "the pill must also precede the reminder mid-session");
+});
+
 const fixture = String.raw`
 import React from "react";
 import { createRoot } from "react-dom/client";

@@ -1024,6 +1024,9 @@ export const fr = {
     iterateLowBalanceRaw: "Le solde Iterate est bas : il reste {{amount}} {{unit}}",
     iterateLowBalanceRecharge: "Recharger",
     iterateLowBalanceDismiss: "Plus tard",
+    iterateQuickSignIn: "Connecter le compte Iterate",
+    iterateQuickBalance: "Solde {{amount}} {{unit}}",
+    iterateQuickRecharge: "Recharger",
     iterateError: {
       BUSY: "Another account operation is still running.",
       LOGIN_REQUIRED: "Sign in again to continue.",
