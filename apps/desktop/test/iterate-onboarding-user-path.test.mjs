@@ -142,6 +142,25 @@ window.piDesktop = {
       purchaseCalls += 1;
       return { ok: true, data: { opened: true } };
     }
+    if (channel === IPC.invoke.iterateUsage) {
+      const now = new Date();
+      const pad = (value) => ("0" + value).slice(-2);
+      const day = (offset) => {
+        const date = new Date(now);
+        date.setDate(date.getDate() - offset);
+        return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate());
+      };
+      return { ok: true, data: {
+        days: [
+          ...Array.from({ length: 5 }, (_, index) => ({ date: day(6 - index), quota: 0, count: 0 })),
+          { date: day(1), quota: 120, count: 2 },
+          { date: day(0), quota: 80, count: 1 },
+        ],
+        models: [{ model: "chat-a", quota: 200, count: 3 }],
+        totalQuota: 200,
+        count: 3,
+      } };
+    }
     if (channel === IPC.invoke.settingsSet) {
       if (settingsMode === "error") {
         return { ok: false, error: { code: "STORAGE", message: "fixture settings store offline" } };

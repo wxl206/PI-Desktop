@@ -29,4 +29,5 @@ export function registerIterateIpc(input: {
   main(IPC.invoke.iterateConsole, () => windows.openConsole());
   main(IPC.invoke.iterateRedeem, (code) => service.run(() => service.redeem(code)));
   main(IPC.invoke.iterateAcknowledgeRedemption, () => service.run(() => service.acknowledgeRedemption()));
+  main(IPC.invoke.iterateUsage, (force) => service.run(() => service.usageSummary(force === true)));
 }

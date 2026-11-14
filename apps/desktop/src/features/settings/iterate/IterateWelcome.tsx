@@ -6,6 +6,7 @@ import { Button } from "../../../components/ui";
 import { api } from "../../../lib/api";
 import { useAppStore } from "../../../stores/app-store";
 import { activateIterateConnection } from "./activate";
+import { applyOverviewToBalance } from "./balance";
 import { failureKey } from "./failure";
 import { IteratePurchaseDialog } from "./IteratePurchaseDialog";
 
@@ -55,6 +56,7 @@ export function IterateWelcome() {
     try {
       const overview = await api.iterateOverview();
       if (!alive.current || token !== generation.current) return;
+      applyOverviewToBalance(overview);
       setLoadError(null);
       if (overview.user) setConnected(true);
       setVisible(true);

@@ -514,6 +514,47 @@
 .iterate-form { padding: 12px 16px; }
 .iterate-form .field-input { flex: 1 1 220px; }
 .iterate-form .settings-menu-select-anchor { flex: 1 1 220px; }
+.iterate-low-balance {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 auto 10px;
+  max-width: 560px;
+  padding: 8px 12px;
+  border-radius: var(--radius-lg-plus, 10px);
+  background: color-mix(in oklab, var(--ds-warning) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--ds-warning) 32%, transparent);
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+}
+.iterate-low-balance-text { min-width: 0; }
+.iterate-low-balance-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.iterate-low-balance-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--ds-text-muted);
+}
+.iterate-low-balance-dismiss:hover { color: var(--ds-text-primary); background: var(--ds-bg-hover); }
+.iterate-usage { display: flex; flex-direction: column; gap: 12px; padding: 0 16px 16px; }
+.iterate-usage-section h4 { margin: 0 0 8px; font-size: var(--text-sm); color: var(--ds-text-secondary); }
+.iterate-usage-days { display: flex; flex-direction: column; gap: 6px; }
+.iterate-usage-day { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 10px; }
+.iterate-usage-day-label { color: var(--ds-text-muted); font-size: var(--text-xs); }
+.iterate-usage-day-track {
+  height: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--ds-tile);
+  overflow: hidden;
+}
+.iterate-usage-day-bar { display: block; height: 100%; border-radius: var(--radius-sm); background: var(--ds-accent-soft); }
+.iterate-usage-models { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.iterate-usage-models li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.iterate-usage-model-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* D297: a panel is one soft tile. No ring in either theme; tone does the work. */
 .settings-panel {

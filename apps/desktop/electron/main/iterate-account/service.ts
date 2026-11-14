@@ -1,9 +1,19 @@
-import type { IterateGroup, IterateOverview, ProviderPublic } from "@pi-desktop/shared";
+import type { IterateGroup, IterateOverview, IterateUsageSummary, ProviderPublic } from "@pi-desktop/shared";
 import { AccountClient } from "./client";
 import { AccountError, ITERATE_ORIGIN, object, text } from "./contract";
 import { AccountKeys } from "./keys";
 import { connectModel, discoverModels, rebindKeyToProviders } from "./models";
+import { aggregateLogs, averageMessageQuota, remainingMessages, type IterateLogItem } from "./usage";
 import type { AccountJournal, JournalStore } from "./journal";
+
+/** Caches keep the overview cheap enough for a five-minute balance poll. */
+const USAGE_TTL_MS = 5 * 60 * 1000;
+const STATUS_TTL_MS = 10 * 60 * 1000;
+const USAGE_DAYS = 7;
+const USAGE_PAGE_SIZE = 100;
+const USAGE_MAX_PAGES = 10;
+
+type UsageCache = { at: number; summary: IterateUsageSummary; average: number | null; count: number };
 
 export function balanceFor(quota: number, status: Record<string, unknown>) {
   const perUnit = status.quota_per_unit;
@@ -19,6 +29,8 @@ export function balanceFor(quota: number, status: Record<string, unknown>) {
 export class AccountService {
   private busy = false;
   private readonly keys: AccountKeys;
+  private usageCache: UsageCache | null = null;
+  private statusCache: { at: number; value: Record<string, unknown> } | null = null;
   constructor(
     readonly client: AccountClient,
     private readonly store: JournalStore,
@@ -59,6 +71,8 @@ export class AccountService {
   }
 
   async signedIn(): Promise<void> {
+    this.usageCache = null;
+    this.statusCache = null;
     await this.withAccountChange(async () => {
       const journal = await this.store.read();
       const nextUser = this.client.id;
@@ -83,7 +97,7 @@ export class AccountService {
   }
 
   async overview(): Promise<IterateOverview> {
-    const empty: IterateOverview = { user: null, groups: [], balance: null, redemptionEnabled: false,
+    const empty: IterateOverview = { user: null, groups: [], balance: null, estimate: null, redemptionEnabled: false,
       redemptionUncertain: false, dedicatedKeyGroups: [], updatedAt: new Date().toISOString() };
     await this.recover();
     if (!this.client.id) return empty;
@@ -92,12 +106,57 @@ export class AccountService {
     const journal = await this.store.read();
     const user = await this.client.identity();
     const groups = await this.groups();
-    const status = object(await this.client.request("/api/status", undefined, { anonymous: true }));
+    const status = await this.gatewayStatus();
     const info = object(await this.client.request("/api/user/topup/info"));
-    return { ...empty, user, groups, balance: balanceFor(user.quota, status), redemptionEnabled: info.enable_redemption === true,
+    // A usage fetch that fails must not fail the balance overview: the
+    // estimate is a nicety, the balance is the answer the page came for.
+    let estimate: IterateOverview["estimate"] = null;
+    try {
+      const usage = await this.usageData();
+      const remaining = remainingMessages(user.quota, usage.average);
+      estimate = usage.average === null ? null
+        : { averageQuota: usage.average, count: usage.count, remainingMessages: remaining };
+    } catch { estimate = null; }
+    return { ...empty, user, groups, balance: balanceFor(user.quota, status), estimate,
+      redemptionEnabled: info.enable_redemption === true,
       redemptionUncertain: journal.redemptionUsers.includes(user.id),
       dedicatedKeyGroups: journal.records.filter((entry) => entry.user === user.id && entry.state === "created")
         .map((entry) => entry.group) };
+  }
+
+  private async gatewayStatus(): Promise<Record<string, unknown>> {
+    if (this.statusCache && Date.now() - this.statusCache.at < STATUS_TTL_MS) return this.statusCache.value;
+    const value = object(await this.client.request("/api/status", undefined, { anonymous: true }));
+    this.statusCache = { at: Date.now(), value };
+    return value;
+  }
+
+  /**
+   * Consume logs for the usage window, paged and cached. The average is kept
+   * alongside the summary so the overview can reuse one fetch for both.
+   */
+  private async usageData(force = false): Promise<UsageCache> {
+    if (!force && this.usageCache && Date.now() - this.usageCache.at < USAGE_TTL_MS) return this.usageCache;
+    const endSeconds = Math.floor(Date.now() / 1000);
+    const startSeconds = endSeconds - USAGE_DAYS * 24 * 60 * 60;
+    let items: IterateLogItem[] = [];
+    let total: number | null = null;
+    for (let page = 1; page <= USAGE_MAX_PAGES; page += 1) {
+      const result = await this.client.logs(startSeconds, endSeconds, page, USAGE_PAGE_SIZE);
+      items = items.concat(result.items);
+      total = result.total;
+      if (result.items.length < USAGE_PAGE_SIZE || (total !== null && items.length >= total)) break;
+    }
+    const summary = aggregateLogs(items, { days: USAGE_DAYS, nowMs: Date.now() });
+    const entry: UsageCache = { at: Date.now(), summary, average: averageMessageQuota(items), count: items.length };
+    this.usageCache = entry;
+    return entry;
+  }
+
+  /** Renderer-facing usage summary; refresh bypasses the cache explicitly. */
+  async usageSummary(force = false): Promise<IterateUsageSummary> {
+    await this.client.authenticated();
+    return (await this.usageData(force)).summary;
   }
 
   private async accountGroup(group: unknown) {
@@ -252,6 +311,8 @@ export class AccountService {
 
   async logout(clearSession: () => Promise<void>) {
     return this.withAccountChange(async () => {
+      this.usageCache = null;
+      this.statusCache = null;
       const journal = await this.store.read();
       // Disable every local connection first. A crash before the journal write
       // restores the old signed-in state and re-enables its providers on recovery.

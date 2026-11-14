@@ -17,6 +17,7 @@ const localOnly = new Set<string>([
   IPC.invoke.iterateDiscover, IPC.invoke.iterateConnect, IPC.invoke.iterateRebuildKey, IPC.invoke.iterateCopyKey,
   IPC.invoke.iteratePurchase, IPC.invoke.iterateConsole, IPC.invoke.iterateRedeem,
   IPC.invoke.iterateAcknowledgeRedemption,
+  IPC.invoke.iterateUsage,
 ]);
 
 /** Defense in depth for keyboard/service callers that bypass disabled controls. */

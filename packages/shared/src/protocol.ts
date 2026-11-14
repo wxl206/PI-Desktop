@@ -213,6 +213,7 @@ export const IPC = {
     iterateConsole: "pi-desktop/iterate/console",
     iterateRedeem: "pi-desktop/iterate/redeem",
     iterateAcknowledgeRedemption: "pi-desktop/iterate/acknowledgeRedemption",
+  iterateUsage: "pi-desktop/iterate/usage",
     settingsSet: "pi-desktop/settings/set",
     sidebarPreferencesGet: "pi-desktop/sidebar/preferences/get",
     sidebarPreferencesSet: "pi-desktop/sidebar/preferences/set",

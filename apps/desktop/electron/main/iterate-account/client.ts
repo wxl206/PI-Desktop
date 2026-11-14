@@ -1,4 +1,5 @@
 import { AccountError, ITERATE_ORIGIN, object, positiveId, secret, text } from "./contract";
+import { parseLogPage } from "./usage";
 
 export type AccountFetch = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -91,5 +92,14 @@ export class AccountClient {
     if (id !== this.userId) { this.clear(); throw new AccountError("LOGIN_REQUIRED"); }
     if (typeof user.quota !== "number" || !Number.isSafeInteger(user.quota)) throw new AccountError("INVALID_RESPONSE");
     return { id, name: text(user.display_name || user.username), quota: user.quota };
+  }
+
+  /** One page of the signed-in user's consume logs (type=2), newest first. */
+  async logs(startSeconds: number, endSeconds: number, page: number, pageSize: number) {
+    const query = new URLSearchParams({
+      p: `${page}`, page_size: `${pageSize}`, type: "2",
+      start_timestamp: `${startSeconds}`, end_timestamp: `${endSeconds}`,
+    });
+    return parseLogPage(await this.request(`/api/log/self?${query.toString()}`));
   }
 }

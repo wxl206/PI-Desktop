@@ -166,6 +166,7 @@ import type {
   StorageInfo,
   IterateModel,
   IterateOverview,
+  IterateUsageSummary,
 } from "@pi-desktop/shared";
 import {
   defaultCommandShellForPlatform,
@@ -763,6 +764,7 @@ export const api = {
   iterateConsole: () => invoke<{ opened: true }>(IPC.invoke.iterateConsole),
   iterateRedeem: (code: string) => invoke<{ redeemed: true }>(IPC.invoke.iterateRedeem, code),
   iterateAcknowledgeRedemption: () => invoke<{ acknowledged: true }>(IPC.invoke.iterateAcknowledgeRedemption),
+  iterateUsage: (force = false) => invoke<IterateUsageSummary>(IPC.invoke.iterateUsage, force),
   getVersion: () => invoke<AppVersionInfo>(IPC.invoke.appGetVersion),
   health: () => invoke<HostHealth>(IPC.invoke.appHealth),
   getOnboarding: () => invoke<OnboardingState>(IPC.invoke.appGetOnboarding),

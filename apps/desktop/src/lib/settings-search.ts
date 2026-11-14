@@ -240,7 +240,7 @@ const SETTINGS_NAV_SOURCE: SettingsNavEntry[] = [
     keywordKeys: [
       "settings.iterateTitle", "settings.iterateBalance", "settings.iterateLogin",
       "settings.iterateGroup", "settings.iterateModels", "settings.iterateRedeem",
-      "settings.iteratePurchase", "settings.iterateConnect",
+      "settings.iteratePurchase", "settings.iterateConnect", "settings.iterateUsageTitle",
     ],
   },
   {

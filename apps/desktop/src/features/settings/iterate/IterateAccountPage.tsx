@@ -7,9 +7,11 @@ import { api } from "../../../lib/api";
 import { useAppStore } from "../../../stores/app-store";
 import { SettingsCard, SettingsRow } from "../primitives";
 import { activateIterateConnection } from "./activate";
+import { applyOverviewToBalance } from "./balance";
 import { failureKey } from "./failure";
 import { IteratePurchaseDialog } from "./IteratePurchaseDialog";
 import { IterateRebuildKeyDialog } from "./IterateRebuildKeyDialog";
+import { IterateUsagePanel } from "./IterateUsagePanel";
 
 export function IterateAccountPage() {
   const { t } = useTranslation();
@@ -46,6 +48,7 @@ export function IterateAccountPage() {
       const value = await api.iterateOverview();
       if (!alive.current || token !== generation.current) return;
       setOverview(value);
+      applyOverviewToBalance(value);
       if (!value.groups.some((entry) => entry.id === groupRef.current)) {
         setGroup(value.groups[0]?.id ?? ""); setModels([]); setModel("");
       }
@@ -157,7 +160,15 @@ export function IterateAccountPage() {
         action={<Badge tone="success">{t("settings.iterateSignedIn")}</Badge>}>
         <div className="iterate-grid">
           <div><span className="settings-row-detail">{t("settings.iterateBalance")}</span>
-            <strong>{overview.balance ? `${overview.balance.amount.toLocaleString()} ${overview.balance.unit}` : t("settings.iterateUnknown")}</strong></div>
+            <strong>{overview.balance ? `${overview.balance.amount.toLocaleString()} ${overview.balance.unit}` : t("settings.iterateUnknown")}</strong>
+            {overview.estimate ? (
+              <span className="settings-row-detail" title={t("settings.iterateEstimateHint")}>
+                {t("settings.iterateEstimate", { count: overview.estimate.remainingMessages ?? 0 })}
+              </span>
+            ) : (
+              <span className="settings-row-detail">{t("settings.iterateEstimateNone")}</span>
+            )}
+          </div>
           <div><span className="settings-row-detail">{t("settings.iterateUpdated")}</span>
             <strong>{new Date(overview.updatedAt).toLocaleTimeString()}</strong></div>
         </div>
@@ -176,6 +187,7 @@ export function IterateAccountPage() {
           {t("settings.iterateError.TASKS_RUNNING")}
         </p> : null}
       </SettingsCard>
+      <IterateUsagePanel overview={overview} />
       <SettingsCard title={t("settings.iterateRedeemTitle")} caption={t("settings.iterateRedeemHint")}>
         <div className="iterate-form">
           <Input value={code} onChange={(event) => setCode(event.target.value)} placeholder={t("settings.iterateCode")}
